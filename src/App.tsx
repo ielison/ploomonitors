@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Bar } from "react-chartjs-2"
+import { useState, useEffect } from "react";
+import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,11 +10,11 @@ import {
   Legend,
   ChartOptions,
   TooltipItem,
-} from "chart.js"
-import ShardData, { AccountData } from './components/ShardData'
-import WebhookData from './components/WebHookData'
-import { fetchShardData, fetchWebhookData } from './utils/api'
-import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+} from "chart.js";
+import ShardData, { AccountData } from "./components/ShardData";
+import WebhookData from "./components/WebHookData";
+import { fetchShardData, fetchWebhookData } from "./utils/api";
+import { RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 
 interface WebhookItem {
   shard_id: number;
@@ -33,38 +33,41 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend
-)
+);
 
 export default function App() {
-  const [shardData, setShardData] = useState<Record<string, AccountData[]> | null>(null)
-  const [webhookData, setWebhookData] = useState<WebhookItem[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isWebhooksCountExpanded, setIsWebhooksCountExpanded] = useState(true)
+  const [shardData, setShardData] = useState<Record<
+    string,
+    AccountData[]
+  > | null>(null);
+  const [webhookData, setWebhookData] = useState<WebhookItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isWebhooksCountExpanded, setIsWebhooksCountExpanded] = useState(true);
 
   const updateData = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const [shardResult, webhookResult] = await Promise.all([
         fetchShardData(),
-        fetchWebhookData()
-      ])
-      setShardData(shardResult.response as Record<string, AccountData[]>)
-      setWebhookData(webhookResult.response)
-      setError(null)
+        fetchWebhookData(),
+      ]);
+      setShardData(shardResult.response as Record<string, AccountData[]>);
+      setWebhookData(webhookResult.response);
+      setError(null);
     } catch (err: unknown) {
-      setError('Failed to fetch data')
-      console.error('Error fetching data:', err)
+      setError("Failed to fetch data");
+      console.error("Error fetching data:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    updateData()
-    const interval = setInterval(updateData, 600000) // 10 minutes
-    return () => clearInterval(interval)
-  }, [])
+    updateData();
+    const interval = setInterval(updateData, 600000); // 10 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   const chartData = {
     labels: webhookData.map((item) => [
@@ -78,7 +81,7 @@ export default function App() {
         backgroundColor: "rgba(75, 192, 192, 0.6)",
       },
     ],
-  }
+  };
 
   const options: ChartOptions<"bar"> = {
     responsive: true,
@@ -90,8 +93,8 @@ export default function App() {
       tooltip: {
         callbacks: {
           title: (tooltipItems: TooltipItem<"bar">[]) => {
-            const index = tooltipItems[0].dataIndex
-            return `Shard ${webhookData[index].shard_id}`
+            const index = tooltipItems[0].dataIndex;
+            return `Shard ${webhookData[index].shard_id}`;
           },
           label: (tooltipItem: TooltipItem<"bar">) =>
             `Webhooks: ${tooltipItem.raw as number}`,
@@ -117,19 +120,20 @@ export default function App() {
         },
       },
     },
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Monitor por Shard</h1>
-          <button 
+          <h1 className="text-3xl font-bold text-gray-900">
+            Monitor por Shard
+          </h1>
+          <button
             onClick={updateData}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center"
           >
-            <RefreshCw className="w-5 h-5 mr-2" />
-            Refresh
+            <RefreshCw className="w-5 h-5 " />
           </button>
         </div>
 
@@ -141,11 +145,17 @@ export default function App() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Webhooks por Shard</h2>
-                <button 
-                  onClick={() => setIsWebhooksCountExpanded(!isWebhooksCountExpanded)}
+                <button
+                  onClick={() =>
+                    setIsWebhooksCountExpanded(!isWebhooksCountExpanded)
+                  }
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                 >
-                  {isWebhooksCountExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                  {isWebhooksCountExpanded ? (
+                    <ChevronUp size={24} />
+                  ) : (
+                    <ChevronDown size={24} />
+                  )}
                 </button>
               </div>
               {isWebhooksCountExpanded && (
@@ -167,5 +177,5 @@ export default function App() {
         )}
       </div>
     </div>
-  )
+  );
 }
