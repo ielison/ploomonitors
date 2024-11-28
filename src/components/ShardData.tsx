@@ -1,7 +1,6 @@
 import { useState } from 'react'
 
 export interface AccountData {
-  _id: string;
   AccountId: number;
   IsNotFound: boolean;
   QueueTime: number;
@@ -41,13 +40,12 @@ export default function ShardData({ data }: ShardDataProps) {
                 <th className="px-4 py-2 text-left ">Account ID</th>
                 <th className="px-4 py-2 text-left">Not Found</th>
                 <th className="px-4 py-2 text-left">Queue Time (minutes)</th>
-                <th className="px-4 py-2 text-left">ID</th>
                 <th className="px-4 py-2 text-left">Date Time</th>
               </tr>
             </thead>
             <tbody>
               {data[selectedShard].map((account) => (
-                <tr key={account._id}>
+                <tr key={account.AccountId}>
                   <td className="border px-4 py-2 text-gray-500">{account.AccountId}</td>
                   <td className="border px-4 py-2 text-gray-500">
                     {account.IsNotFound ? 'Yes' : 'No'}
@@ -55,7 +53,7 @@ export default function ShardData({ data }: ShardDataProps) {
                   <td className="border px-4 py-2 text-gray-500">
                     {account.QueueTime.toFixed(2)} minutes
                   </td>
-                  <td className="border px-4 py-2 text-gray-500">{account._id}</td>
+                  
                   <td className="border px-4 py-2 text-gray-500">
                     {new Date(new Date(account.DateTime).getTime() + 3 * 60 * 60 * 1000).toLocaleString('en-GB', { 
                       year: '2-digit', 
