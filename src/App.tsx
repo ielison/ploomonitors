@@ -14,7 +14,8 @@ import {
 import ShardData, { AccountData } from "./components/ShardData";
 import WebhookData from "./components/WebHookData";
 import { fetchShardData, fetchWebhookData } from "./utils/api";
-import { RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion } from "framer-motion";
 
 interface WebhookItem {
   shard_id: number;
@@ -129,34 +130,43 @@ export default function App() {
           <h1 className="text-3xl font-bold text-gray-900">
             Monitor por Shard
           </h1>
-          <button
+          <motion.button
             onClick={updateData}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             <RefreshCw className="w-5 h-5 " />
-          </button>
+          </motion.button>
         </div>
 
         {loading && <p className="text-center py-4">Loading...</p>}
         {error && <p className="text-center py-4 text-red-500">{error}</p>}
 
         {!loading && !error && (
-          <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-6"
+          >
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Webhooks por Shard</h2>
-                <button
+                <motion.button
                   onClick={() =>
                     setIsWebhooksCountExpanded(!isWebhooksCountExpanded)
                   }
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                 >
                   {isWebhooksCountExpanded ? (
                     <ChevronUp size={24} />
                   ) : (
                     <ChevronDown size={24} />
                   )}
-                </button>
+                </motion.button>
               </div>
               {isWebhooksCountExpanded && (
                 <div className="h-[300px]">
@@ -173,9 +183,10 @@ export default function App() {
               <h2 className="text-xl font-semibold mb-4">Shard Data</h2>
               {shardData && <ShardData data={shardData} />}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>
   );
 }
+

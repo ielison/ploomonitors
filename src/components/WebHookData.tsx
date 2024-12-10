@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDate } from "../utils/formDate";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface WebhookItem {
   shard_id: number;
@@ -23,66 +24,82 @@ export default function WebhookData({ data }: WebhookDataProps) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Filas</h2>
-        <button
+        <motion.button
           onClick={() => setIsExpanded(!isExpanded)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
           {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-        </button>
+        </motion.button>
       </div>
-      {isExpanded && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                {[
-                  "shard",
-                  "webhooks",
-                  "events",
-                  "changes reports",
-                  "changelogs",
-                  "automations",
-                  "DateTime",
-                ].map((key) => (
-                  <th
-                    key={key}
-                    className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    {key}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {data.map((item, index) => (
-                <tr key={index}>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {item.shard_id}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {item.webhooks_count}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {item.events_count}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {item.changes_reports_count}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {item.changelogs_count}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {item.automations_count}
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(item.DateTime)}
-                  </td>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-x-auto"
+          >
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {[
+                    "shard",
+                    "webhooks",
+                    "events",
+                    "changes reports",
+                    "changelogs",
+                    "automations",
+                    "DateTime",
+                  ].map((key) => (
+                    <th
+                      key={key}
+                      className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {key}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.map((item, index) => (
+                  <motion.tr
+                    key={index}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.shard_id}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.webhooks_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.events_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.changes_reports_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.changelogs_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.automations_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(item.DateTime)}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

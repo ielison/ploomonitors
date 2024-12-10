@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export interface AccountData {
   AccountId: number;
@@ -19,7 +20,7 @@ export default function ShardData({ data }: ShardDataProps) {
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
         {Object.keys(data).map((shardId) => (
-          <button
+          <motion.button
             key={shardId}
             className={`px-3 py-1 rounded ${
               selectedShard === shardId
@@ -27,49 +28,63 @@ export default function ShardData({ data }: ShardDataProps) {
                 : 'bg-gray-200 text-gray-700'
             }`}
             onClick={() => setSelectedShard(prevShard => prevShard === shardId ? null : shardId)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             Shard {shardId}
-          </button>
+          </motion.button>
         ))}
       </div>
-      {selectedShard !== null && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left ">Account ID</th>
-                <th className="px-4 py-2 text-left">Not Found</th>
-                <th className="px-4 py-2 text-left">Queue Time (minutes)</th>
-                <th className="px-4 py-2 text-left">Date Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data[selectedShard].map((account) => (
-                <tr key={account.AccountId}>
-                  <td className="border px-4 py-2 text-gray-500">{account.AccountId}</td>
-                  <td className="border px-4 py-2 text-gray-500">
-                    {account.IsNotFound ? 'Yes' : 'No'}
-                  </td>
-                  <td className="border px-4 py-2 text-gray-500">
-                    {account.QueueTime.toFixed(2)} minutes
-                  </td>
-                  
-                  <td className="border px-4 py-2 text-gray-500">
-                    {new Date(new Date(account.DateTime).getTime() + 3 * 60 * 60 * 1000).toLocaleString('en-GB', { 
-                      year: '2-digit', 
-                      month: '2-digit', 
-                      day: '2-digit', 
-                      hour: '2-digit', 
-                      minute: '2-digit',
-                      hour12: false 
-                    }).replace(',', ' -')}
-                  </td>
+      <AnimatePresence>
+        {selectedShard !== null && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-x-auto"
+          >
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left ">Account ID</th>
+                  <th className="px-4 py-2 text-left">Not Found</th>
+                  <th className="px-4 py-2 text-left">Queue Time (minutes)</th>
+                  <th className="px-4 py-2 text-left">Date Time</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {data[selectedShard].map((account, index) => (
+                  <motion.tr
+                    key={account.AccountId}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <td className="border px-4 py-2 text-gray-500">{account.AccountId}</td>
+                    <td className="border px-4 py-2 text-gray-500">
+                      {account.IsNotFound ? 'Yes' : 'No'}
+                    </td>
+                    <td className="border px-4 py-2 text-gray-500">
+                      {account.QueueTime.toFixed(2)} minutes
+                    </td>
+                    <td className="border px-4 py-2 text-gray-500">
+                      {new Date(new Date(account.DateTime).getTime() + 3 * 60 * 60 * 1000).toLocaleString('en-GB', { 
+                        year: '2-digit', 
+                        month: '2-digit', 
+                        day: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false 
+                      }).replace(',', ' -')}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
