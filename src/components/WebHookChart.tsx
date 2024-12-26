@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { ChartOptions, TooltipItem } from "chart.js";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,15 +16,19 @@ interface WebhookItem {
 
 interface WebhooksChartProps {
   data: WebhookItem[];
-  isExpanded: boolean;
-  onToggleExpand: () => void;
+  title: string;
 }
 
-const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, isExpanded, onToggleExpand }) => {
+const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(value);
+};
+
+const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, title }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
   const chartData = {
     labels: data.map((item) => [
       `Shard ${item.shard_id}`,
-      `${item.webhooks_count}`,
+      `${formatNumber(item.webhooks_count)}`,
     ]),
     datasets: [
       {
@@ -49,7 +53,7 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, isExpanded, onToggl
             return `Shard ${data[index].shard_id}`;
           },
           label: (tooltipItem: TooltipItem<"bar">) =>
-            `Webhooks: ${tooltipItem.raw as number}`,
+            `Webhooks: ${formatNumber(tooltipItem.raw as number)}`,
         },
       },
     },
@@ -69,6 +73,7 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, isExpanded, onToggl
           font: {
             size: 10,
           },
+          callback: (value) => formatNumber(value as number),
         },
       },
     },
@@ -77,18 +82,14 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, isExpanded, onToggl
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Webhooks por Shard</h2>
+        <h2 className="text-xl font-semibold">{title}</h2>
         <motion.button
-          onClick={onToggleExpand}
+          onClick={() => setIsExpanded(!isExpanded)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >
-          {isExpanded ? (
-            <ChevronUp size={24} />
-          ) : (
-            <ChevronDown size={24} />
-          )}
+          {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
         </motion.button>
       </div>
       <AnimatePresence initial={false}>
@@ -100,7 +101,7 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, isExpanded, onToggl
             exit="collapsed"
             variants={{
               expanded: { opacity: 1, height: "300px" },
-              collapsed: { opacity: 0, height: 0 }
+              collapsed: { opacity: 0, height: 0 },
             }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
