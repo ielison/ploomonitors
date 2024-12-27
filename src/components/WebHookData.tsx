@@ -49,7 +49,7 @@ export default function WebhookData({ data }: WebhookDataProps) {
             className="overflow-x-auto"
           >
             <table className="min-w-full">
-              <thead className="bg-gray-700">
+              <thead className="bg-gray-900">
                 <tr>
                   {[
                     "shard",

@@ -55,7 +55,7 @@ export default function ShardData({ data }: ShardDataProps) {
             className="overflow-x-auto"
           >
             <table className="min-w-full">
-              <thead className="bg-gray-700">
+              <thead className="bg-gray-900">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Account ID
@@ -71,25 +71,29 @@ export default function ShardData({ data }: ShardDataProps) {
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-200">
                 {data[selectedShard].map((account, index) => (
                   <motion.tr
                     key={account.AccountId}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.05 }}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
+                    className="bg-white"
                   >
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
                       {account.AccountId}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                      {account.IsNotFound ? "Yes" : "No"}
+                    <td className="px-4 py-2 whitespace-nowrap text-base">
+                      <span
+                        className={account.IsNotFound ? "font-semibold text-red-500" : "  text-gray-900"}
+                      >
+                        {account.IsNotFound ? "Yes" : "No"}
+                      </span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
                       {account.QueueTime.toFixed(2)} minutes
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
                       {new Date(
                         new Date(account.DateTime).getTime() +
                           3 * 60 * 60 * 1000

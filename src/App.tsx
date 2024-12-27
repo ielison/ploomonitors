@@ -137,7 +137,7 @@ export default function App() {
           </div>
         </div>
 
-        {loading && <p className="text-center py-4">Carregando...</p>}
+        {loading && <p className="text-center py-16 font-semibold text-2xl">Carregando...</p>}
         {error && <p className="text-center py-4 text-red-500">{error}</p>}
 
         {!loading && !error && (
