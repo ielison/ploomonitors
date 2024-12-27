@@ -16,6 +16,12 @@ interface ShardDataProps {
 export default function ShardData({ data }: ShardDataProps) {
   const [selectedShard, setSelectedShard] = useState<string | null>(null)
 
+  const getButtonColor = (rowCount: number) => {
+    if (rowCount > 50) return 'bg-red-700';
+    if (rowCount > 10) return 'bg-orange-700';
+    return 'bg-blue-700';
+  };
+
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
@@ -24,7 +30,7 @@ export default function ShardData({ data }: ShardDataProps) {
             key={shardId}
             className={`px-3 py-1 rounded ${
               selectedShard === shardId
-                ? 'bg-blue-700 text-white'
+                ? `${getButtonColor(data[shardId].length)} text-white`
                 : 'bg-gray-200 text-gray-700'
             }`}
             onClick={() => setSelectedShard(prevShard => prevShard === shardId ? null : shardId)}
