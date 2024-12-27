@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "../utils/formDate";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,6 +16,12 @@ interface WebhookItem {
 interface WebhookDataProps {
   data: WebhookItem[];
 }
+
+const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(
+    value
+  );
+};
 
 export default function WebhookData({ data }: WebhookDataProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -43,7 +49,7 @@ export default function WebhookData({ data }: WebhookDataProps) {
             className="overflow-x-auto"
           >
             <table className="min-w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-700">
                 <tr>
                   {[
                     "shard",
@@ -56,40 +62,41 @@ export default function WebhookData({ data }: WebhookDataProps) {
                   ].map((key) => (
                     <th
                       key={key}
-                      className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider"
                     >
                       {key}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200">
                 {data.map((item, index) => (
                   <motion.tr
                     key={index}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.05 }}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
                   >
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                       {item.shard_id}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                      {item.webhooks_count}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {formatNumber(item.webhooks_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                      {item.events_count}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {formatNumber(item.events_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                      {item.changes_reports_count}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {formatNumber(item.changes_reports_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                      {item.changelogs_count}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {formatNumber(item.changelogs_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                      {item.automations_count}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {formatNumber(item.automations_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(item.DateTime)}
                     </td>
                   </motion.tr>
@@ -102,4 +109,3 @@ export default function WebhookData({ data }: WebhookDataProps) {
     </div>
   );
 }
-

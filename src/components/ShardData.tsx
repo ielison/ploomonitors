@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface AccountData {
   AccountId: number;
@@ -10,16 +10,16 @@ export interface AccountData {
 }
 
 interface ShardDataProps {
-  data: Record<string, AccountData[]>
+  data: Record<string, AccountData[]>;
 }
 
 export default function ShardData({ data }: ShardDataProps) {
-  const [selectedShard, setSelectedShard] = useState<string | null>(null)
+  const [selectedShard, setSelectedShard] = useState<string | null>(null);
 
   const getButtonColor = (rowCount: number) => {
-    if (rowCount > 50) return 'bg-red-700';
-    if (rowCount > 10) return 'bg-orange-700';
-    return 'bg-blue-700';
+    if (rowCount > 50) return "bg-red-700";
+    if (rowCount > 10) return "bg-orange-700";
+    return "bg-blue-700";
   };
 
   return (
@@ -31,9 +31,13 @@ export default function ShardData({ data }: ShardDataProps) {
             className={`px-3 py-1 rounded ${
               selectedShard === shardId
                 ? `${getButtonColor(data[shardId].length)} text-white`
-                : 'bg-gray-200 text-gray-700'
+                : "bg-gray-200 text-gray-700"
             }`}
-            onClick={() => setSelectedShard(prevShard => prevShard === shardId ? null : shardId)}
+            onClick={() =>
+              setSelectedShard((prevShard) =>
+                prevShard === shardId ? null : shardId
+              )
+            }
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -45,18 +49,26 @@ export default function ShardData({ data }: ShardDataProps) {
         {selectedShard !== null && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
             className="overflow-x-auto"
           >
-            <table className="min-w-full bg-white">
-              <thead>
+            <table className="min-w-full">
+              <thead className="bg-gray-700">
                 <tr>
-                  <th className="px-4 py-2 text-left ">Account ID</th>
-                  <th className="px-4 py-2 text-left">Not Found</th>
-                  <th className="px-4 py-2 text-left">Queue Time (minutes)</th>
-                  <th className="px-4 py-2 text-left">Date Time</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    Account ID
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    Not Found
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    Queue Time (minutes)
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    Date Time
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -66,23 +78,31 @@ export default function ShardData({ data }: ShardDataProps) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.05 }}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
                   >
-                    <td className="border px-4 py-2 text-gray-500">{account.AccountId}</td>
-                    <td className="border px-4 py-2 text-gray-500">
-                      {account.IsNotFound ? 'Yes' : 'No'}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {account.AccountId}
                     </td>
-                    <td className="border px-4 py-2 text-gray-500">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {account.IsNotFound ? "Yes" : "No"}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                       {account.QueueTime.toFixed(2)} minutes
                     </td>
-                    <td className="border px-4 py-2 text-gray-500">
-                      {new Date(new Date(account.DateTime).getTime() + 3 * 60 * 60 * 1000).toLocaleString('en-GB', { 
-                        year: '2-digit', 
-                        month: '2-digit', 
-                        day: '2-digit', 
-                        hour: '2-digit', 
-                        minute: '2-digit',
-                        hour12: false 
-                      }).replace(',', ' -')}
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(
+                        new Date(account.DateTime).getTime() +
+                          3 * 60 * 60 * 1000
+                      )
+                        .toLocaleString("en-GB", {
+                          year: "2-digit",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        })
+                        .replace(",", " -")}
                     </td>
                   </motion.tr>
                 ))}
@@ -92,6 +112,5 @@ export default function ShardData({ data }: ShardDataProps) {
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
-

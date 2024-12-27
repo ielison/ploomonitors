@@ -69,7 +69,7 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, title }) => {
           padding: 0,
           autoSkip: false,
           font: {
-            size: 10,
+            size: 12,
           },
         },
       },
