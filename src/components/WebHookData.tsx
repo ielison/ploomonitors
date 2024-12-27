@@ -69,14 +69,14 @@ export default function WebhookData({ data }: WebhookDataProps) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-300">
                 {data.map((item, index) => (
                   <motion.tr
                     key={index}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.05 }}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-100"}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-200"}
                   >
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                       {item.shard_id}

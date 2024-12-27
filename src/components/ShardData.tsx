@@ -71,14 +71,14 @@ export default function ShardData({ data }: ShardDataProps) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-300">
                 {data[selectedShard].map((account, index) => (
                   <motion.tr
                     key={account.AccountId}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: index * 0.05 }}
-                    className="bg-white"
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-200"}
                   >
                     <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
                       {account.AccountId}
@@ -118,3 +118,4 @@ export default function ShardData({ data }: ShardDataProps) {
     </div>
   );
 }
+
