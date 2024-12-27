@@ -11,7 +11,7 @@ import {
 import ShardData, { AccountData } from "./components/ShardData";
 import WebhookData from "./components/WebHookData";
 import { fetchShardData, fetchWebhookData } from "./utils/api";
-import { RefreshCw, LogOut } from "lucide-react";
+import { RefreshCw, LogOut } from 'lucide-react';
 import { motion } from "framer-motion";
 import WebhooksChart from "./components/WebhooksChart";
 import { Login } from "./components/Login";
@@ -37,20 +37,14 @@ ChartJS.register(
 );
 
 export default function App() {
-  const [shardData, setShardData] = useState<Record<
-    string,
-    AccountData[]
-  > | null>(null);
+  const [shardData, setShardData] = useState<Record<string, AccountData[]> | null>(null);
   const [webhookData, setWebhookData] = useState<WebhookItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const checkAuth = () => {
-      setIsAuthenticated(!!localStorage.getItem("userKey"));
-    };
-    checkAuth();
+    setIsAuthenticated(!!localStorage.getItem('userKey'));
   }, []);
 
   const updateData = async () => {
@@ -74,7 +68,7 @@ export default function App() {
   useEffect(() => {
     if (isAuthenticated) {
       updateData();
-      const interval = setInterval(updateData, 600000); // 10 minutos
+      const interval = setInterval(updateData, 600000); // 10 minutes
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
@@ -126,7 +120,7 @@ export default function App() {
           <div className="flex space-x-4">
             <motion.button
               onClick={updateData}
-              className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-900 transition-colors flex items-center"
+              className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-600 transition-colors flex items-center"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -134,7 +128,7 @@ export default function App() {
             </motion.button>
             <motion.button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-900 transition-colors flex items-center"
+              className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-600 transition-colors flex items-center"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -144,7 +138,7 @@ export default function App() {
         </div>
 
         {loading && <p className="text-center py-4">Carregando...</p>}
-        {error && <p className="text-center py-4 text-red-700">{error}</p>}
+        {error && <p className="text-center py-4 text-red-500">{error}</p>}
 
         {!loading && !error && (
           <motion.div
@@ -171,3 +165,4 @@ export default function App() {
     </div>
   );
 }
+
