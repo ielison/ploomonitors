@@ -1,8 +1,7 @@
-import React, { useState } from "react";
-import { Bar } from "react-chartjs-2";
-import { ChartOptions, TooltipItem } from "chart.js";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { formatDate } from "../utils/formDate";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface WebhookItem {
   shard_id: number;
@@ -14,75 +13,17 @@ interface WebhookItem {
   DateTime: string;
 }
 
-interface WebhooksChartProps {
+interface WebhookDataProps {
   data: WebhookItem[];
-  title: string;
 }
 
-const formatNumber = (value: number): string => {
-  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(value);
-};
-
-const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, title }) => {
+export default function WebhookData({ data }: WebhookDataProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const chartData = {
-    labels: data.map((item) => [
-      `Shard ${item.shard_id}`,
-      `${formatNumber(item.webhooks_count)}`,
-    ]),
-    datasets: [
-      {
-        label: "Webhooks Count",
-        data: data.map((item) => item.webhooks_count),
-        backgroundColor: "rgba(75, 192, 192, 0.6)",
-      },
-    ],
-  };
-
-  const options: ChartOptions<"bar"> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        callbacks: {
-          title: (tooltipItems: TooltipItem<"bar">[]) => {
-            const index = tooltipItems[0].dataIndex;
-            return `Shard ${data[index].shard_id}`;
-          },
-          label: (tooltipItem: TooltipItem<"bar">) =>
-            `Webhooks: ${formatNumber(tooltipItem.raw as number)}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          padding: 0,
-          autoSkip: false,
-          font: {
-            size: 10,
-          },
-        },
-      },
-      y: {
-        beginAtZero: true,
-        ticks: {
-          font: {
-            size: 10,
-          },
-          callback: (value) => formatNumber(value as number),
-        },
-      },
-    },
-  };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-lg font-semibold">Filas</h2>
         <motion.button
           onClick={() => setIsExpanded(!isExpanded)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
@@ -92,27 +33,72 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, title }) => {
           {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
         </motion.button>
       </div>
-      <AnimatePresence initial={false}>
+      <AnimatePresence>
         {isExpanded && (
           <motion.div
-            key="content"
-            initial="collapsed"
-            animate="expanded"
-            exit="collapsed"
-            variants={{
-              expanded: { opacity: 1, height: "300px" },
-              collapsed: { opacity: 0, height: 0 },
-            }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            style={{ overflow: "hidden" }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-x-auto"
           >
-            <Bar data={chartData} options={options} />
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {[
+                    "shard",
+                    "webhooks",
+                    "events",
+                    "changes reports",
+                    "changelogs",
+                    "automations",
+                    "DateTime",
+                  ].map((key) => (
+                    <th
+                      key={key}
+                      className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {key}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.map((item, index) => (
+                  <motion.tr
+                    key={index}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.shard_id}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.webhooks_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.events_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.changes_reports_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.changelogs_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {item.automations_count}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(item.DateTime)}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
-};
-
-export default WebhooksChart;
-
+}
