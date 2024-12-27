@@ -24,7 +24,7 @@ export default function ShardData({ data }: ShardDataProps) {
             key={shardId}
             className={`px-3 py-1 rounded ${
               selectedShard === shardId
-                ? 'bg-blue-500 text-white'
+                ? 'bg-blue-700 text-white'
                 : 'bg-gray-200 text-gray-700'
             }`}
             onClick={() => setSelectedShard(prevShard => prevShard === shardId ? null : shardId)}
