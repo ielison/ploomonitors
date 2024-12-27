@@ -57,16 +57,16 @@ export default function ShardData({ data }: ShardDataProps) {
             <table className="min-w-full">
               <thead className="bg-gray-900">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-white uppercase tracking-wider">
                     Account ID
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-white uppercase tracking-wider">
                     Not Found
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-white uppercase tracking-wider">
                     Queue Time (minutes)
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  <th className="px-4 py-2 text-center text-xs font-medium text-white uppercase tracking-wider">
                     Date Time
                   </th>
                 </tr>
@@ -80,20 +80,24 @@ export default function ShardData({ data }: ShardDataProps) {
                     transition={{ delay: index * 0.05 }}
                     className={index % 2 === 0 ? "bg-white" : "bg-gray-200"}
                   >
-                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900 text-center">
                       {account.AccountId}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-base">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-center">
                       <span
-                        className={account.IsNotFound ? "font-semibold text-red-500" : "  text-gray-900"}
+                        className={
+                          account.IsNotFound
+                            ? "font-semibold text-red-500"
+                            : "  text-gray-900"
+                        }
                       >
                         {account.IsNotFound ? "Yes" : "No"}
                       </span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900 text-center">
                       {account.QueueTime.toFixed(2)} minutes
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-base text-gray-900 text-center">
                       {new Date(
                         new Date(account.DateTime).getTime() +
                           3 * 60 * 60 * 1000
@@ -118,4 +122,3 @@ export default function ShardData({ data }: ShardDataProps) {
     </div>
   );
 }
-

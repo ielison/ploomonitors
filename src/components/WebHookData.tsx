@@ -62,7 +62,7 @@ export default function WebhookData({ data }: WebhookDataProps) {
                   ].map((key) => (
                     <th
                       key={key}
-                      className="px-4 py-2 text-left text-xs font-medium text-white uppercase tracking-wider"
+                      className="px-4 py-2 text-center text-xs font-medium text-white uppercase tracking-wider"
                     >
                       {key}
                     </th>
@@ -78,25 +78,25 @@ export default function WebhookData({ data }: WebhookDataProps) {
                     transition={{ delay: index * 0.05 }}
                     className={index % 2 === 0 ? "bg-white" : "bg-gray-200"}
                   >
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {item.shard_id}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {formatNumber(item.webhooks_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {formatNumber(item.events_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {formatNumber(item.changes_reports_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {formatNumber(item.changelogs_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {formatNumber(item.automations_count)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
                       {formatDate(item.DateTime)}
                     </td>
                   </motion.tr>
