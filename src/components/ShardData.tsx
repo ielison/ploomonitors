@@ -18,7 +18,7 @@ export default function ShardData({ data }: ShardDataProps) {
 
   const getButtonColor = (rowCount: number) => {
     if (rowCount > 50) return "bg-red-700";
-    if (rowCount > 10) return "bg-orange-700";
+    if (rowCount > 10) return "bg-orange-500";
     return "bg-blue-700";
   };
 

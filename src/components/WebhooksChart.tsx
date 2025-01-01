@@ -25,7 +25,7 @@ const formatNumber = (value: number): string => {
 
 const getBarColor = (count: number): string => {
   if (count > 50000) return 'rgb(185, 28, 28)';
-  if (count > 10000) return 'rgb(194, 65, 12)';
+  if (count > 10000) return 'rgb(249, 115, 22)';
   return 'rgb(29, 78, 216)';
 };
 
