@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { ChartOptions, TooltipItem } from "chart.js";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface WebhookItem {
   shard_id: number;
@@ -20,13 +20,16 @@ interface WebhooksChartProps {
 }
 
 const formatNumber = (value: number): string => {
-  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(
+    value
+  );
 };
 
 const getBarColor = (count: number): string => {
-  if (count > 50000) return 'rgb(185, 28, 28)';
-  if (count > 10000) return 'rgb(249, 115, 22)';
-  return 'rgb(29, 78, 216)';
+  if (count > 150000) return "rgb(185, 28, 28)";
+  if (count > 100000) return "rgb(249, 115, 22)";
+  if (count > 50000) return "rgb(238, 255, 0)";
+  return "rgb(29, 78, 216)";
 };
 
 const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, title }) => {
@@ -121,4 +124,3 @@ const WebhooksChart: React.FC<WebhooksChartProps> = ({ data, title }) => {
 };
 
 export default WebhooksChart;
-
