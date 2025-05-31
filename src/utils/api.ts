@@ -1,6 +1,7 @@
+import { AccountData } from '../components/ShardData';
 import { getAuthToken } from './auth';
 
-export async function fetchShardData() {
+export async function fetchShardData(p0: Record<string, AccountData[]>) {
   const userKey = getAuthToken();
   const response = await fetch('https://ploomes-n8n-2b33fce99793.herokuapp.com/webhook/relatorios/cache', {
     headers: {
