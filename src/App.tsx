@@ -5,8 +5,8 @@ import { RefreshCw, LogOut } from "lucide-react"
 import { motion } from "framer-motion"
 import { Login } from "./components/Login"
 import { setAuthToken, removeAuthToken } from "./utils/auth"
-import HistoricShardData from "./components/HistoricShardData"
-import { mockHistoricShardData } from "./data/mockHistoricData"
+import HistoricWebhookData from "./components/HistoricWebhookData"
+import { mockHistoricWebhookData } from "./data/mockHistoricWebhookData"
 
 export default function App() {
   const [loading, setLoading] = useState<boolean>(false)
@@ -98,7 +98,7 @@ export default function App() {
           className="space-y-6"
         >
           <div className="bg-white rounded-lg shadow p-6">
-            <HistoricShardData data={mockHistoricShardData} />
+            <HistoricWebhookData data={mockHistoricWebhookData} />
           </div>
         </motion.div>
       </div>
