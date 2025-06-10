@@ -8,6 +8,10 @@ export interface HistoricWebhookData {
   DateTime: string
 }
 
+export interface HistoricWebhookDataProps {
+  data: HistoricWebhookData[]
+}
+
 // Função para gerar dados históricos de webhook com padrões realistas
 export const generateMockWebhookData = (): HistoricWebhookData[] => {
   const data: HistoricWebhookData[] = []
@@ -25,7 +29,6 @@ export const generateMockWebhookData = (): HistoricWebhookData[] => {
 
   // Gerar aproximadamente 2000 registros distribuídos ao longo do período
   const targetRecords = 2000
-  //const recordsPerInterval = Math.max(1, Math.floor(targetRecords / totalIntervals))
 
   for (let i = 0; i < totalIntervals; i += Math.floor(totalIntervals / targetRecords)) {
     const currentTime = new Date(startDate.getTime() + i * intervalMinutes * 60 * 1000)

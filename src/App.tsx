@@ -1,17 +1,25 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, LogOut } from "lucide-react"
+import { RefreshCw, LogOut, BarChart3, Database, Link, Zap } from "lucide-react" // Importar Link e Zap icons
 import { motion } from "framer-motion"
 import { Login } from "./components/Login"
 import { setAuthToken, removeAuthToken } from "./utils/auth"
+import HistoricShardData from "./components/HistoricShardData"
+import { mockHistoricShardData } from "./data/mockHistoricData"
 import HistoricWebhookData from "./components/HistoricWebhookData"
 import { mockHistoricWebhookData } from "./data/mockHistoricWebhookData"
+import HistoricWebhookDetails from "./components/HistoricWebhookDetails" // Importar novo componente
+import HistoricAutomations from "./components/HistoricAutomations" // Importar novo componente
+import { ThemeToggle } from "./components/ThemeToggle"
 
 export default function App() {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [activeTab, setActiveTab] = useState<"shards" | "webhooks" | "historicWebhooks" | "historicAutomations">(
+    "shards",
+  )
 
   useEffect(() => {
     setIsAuthenticated(!!localStorage.getItem("userKey"))
@@ -64,42 +72,142 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Monitor por Shard - Histórico</h1>
-          <div className="flex space-x-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Monitor por Shard</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">Sistema de monitoramento histórico</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <ThemeToggle />
             <motion.button
               onClick={updateData}
-              className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-600 transition-colors flex items-center"
+              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              disabled={loading}
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className={`w-5 h-5 mr-2 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Atualizando..." : "Atualizar"}
             </motion.button>
             <motion.button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-600 transition-colors flex items-center"
+              className="flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5 mr-2" />
+              Sair
             </motion.button>
           </div>
         </div>
 
-        {loading && <p className="text-center py-16 font-semibold text-2xl">Carregando...</p>}
-        {error && <p className="text-center py-4 text-red-500">{error}</p>}
+        {/* Error Alert */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 mb-6 rounded-md"
+          >
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-red-500 dark:text-red-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="space-y-6"
-        >
-          <div className="bg-white rounded-lg shadow p-6">
-            <HistoricWebhookData data={mockHistoricWebhookData} />
+        {/* Navigation Tabs */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-1 transition-colors duration-300">
+            <nav className="flex space-x-1">
+              <button
+                onClick={() => setActiveTab("shards")}
+                className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
+                  activeTab === "shards"
+                    ? "bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Database className="w-4 h-4 mr-2" />
+                Monitor por Shard
+              </button>
+              <button
+                onClick={() => setActiveTab("webhooks")}
+                className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
+                  activeTab === "webhooks"
+                    ? "bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Histórico de Filas
+              </button>
+              <button
+                onClick={() => setActiveTab("historicWebhooks")}
+                className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
+                  activeTab === "historicWebhooks"
+                    ? "bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Link className="w-4 h-4 mr-2" />
+                Detalhes Webhooks
+              </button>
+              <button
+                onClick={() => setActiveTab("historicAutomations")}
+                className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
+                  activeTab === "historicAutomations"
+                    ? "bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Detalhes Automações
+              </button>
+            </nav>
           </div>
+        </div>
+
+        {/* Content */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {activeTab === "shards" && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
+              <HistoricShardData data={mockHistoricShardData} />
+            </div>
+          )}
+          {activeTab === "webhooks" && <HistoricWebhookData data={mockHistoricWebhookData} />}
+          {activeTab === "historicWebhooks" && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
+              <HistoricWebhookDetails />
+            </div>
+          )}
+          {activeTab === "historicAutomations" && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
+              <HistoricAutomations />
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
