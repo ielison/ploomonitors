@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Calendar, Filter, ChevronDown, ChevronUp, BarChart3, LineChart } from "lucide-react"
+import { Calendar, Filter, ChevronDown, ChevronUp, BarChart3, LineChart, List } from "lucide-react"
 import { Line } from "react-chartjs-2"
 import {
   Chart as ChartJS,
@@ -18,10 +18,20 @@ import {
   Filler,
   type ChartOptions,
 } from "chart.js"
-import type { HistoricWebhookData, HistoricWebhookDataProps } from "../data/mockHistoricWebhookData"
+import { fetchHistoricCentral } from "../utils/api"
 
 // Registrar componentes do Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
+
+export interface HistoricWebhookData {
+  shard_id: number
+  webhooks_count: number
+  events_count: number
+  changes_reports_count: number
+  changelogs_count: number
+  automations_count: number
+  DateTime: string
+}
 
 // Cores para o tema
 const COLORS = {
@@ -38,26 +48,45 @@ const COLORS = {
   border: "#e5e7eb", // gray-200
 }
 
-export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDataProps) {
-  const [selectedShard, setSelectedShard] = useState<number | null>(null)
-  const [filteredData, setFilteredData] = useState<HistoricWebhookData[]>(data)
+// Função para obter data/hora no horário de Brasília (GMT-3)
+const getBrasiliaDate = (offsetHours = 0) => {
+  const now = new Date()
+  const brasiliaTime = new Date(now.getTime() - 3 * 60 * 60 * 1000)
+  brasiliaTime.setHours(brasiliaTime.getHours() + offsetHours)
+  return brasiliaTime.toISOString().slice(0, 16)
+}
+
+const getDefaultStartDate = () => getBrasiliaDate(-24) // 24 horas atrás
+const getDefaultEndDate = () => getBrasiliaDate(0) // hora atual
+
+const formatDateForDisplay = (dateString: string) => {
+  if (!dateString) return ""
+  const date = new Date(dateString)
+  const day = date.getDate().toString().padStart(2, "0")
+  const month = (date.getMonth() + 1).toString().padStart(2, "0")
+  const hours = date.getHours().toString().padStart(2, "0")
+  const minutes = date.getMinutes().toString().padStart(2, "0")
+  const seconds = date.getSeconds().toString().padStart(2, "0")
+  return `${day}/${month}, ${hours}:${minutes}:${seconds}`
+}
+
+const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
+}
+
+export default function HistoricWebhookDataComponent() {
+  const [data, setData] = useState<HistoricWebhookData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [triggerSearch, setTriggerSearch] = useState(false)
+
   const [viewMode, setViewMode] = useState<"line" | "bar" | "table">("line")
   const [showFilters, setShowFilters] = useState(false)
   const [selectedMetric, setSelectedMetric] = useState<string>("webhooks_count")
 
-  // Função para obter data/hora no horário de Brasília (GMT-3)
-  const getBrasiliaDate = (offsetHours = 0) => {
-    const now = new Date()
-    const brasiliaTime = new Date(now.getTime() - 3 * 60 * 60 * 1000)
-    brasiliaTime.setHours(brasiliaTime.getHours() + offsetHours)
-    return brasiliaTime.toISOString().slice(0, 16)
-  }
-
-  const getDefaultStartDate = () => getBrasiliaDate(-24) // 24 horas atrás
-  const getDefaultEndDate = () => getBrasiliaDate(0) // hora atual
-
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate())
   const [endDate, setEndDate] = useState<string>(getDefaultEndDate())
+  const [shardIdInput, setShardIdInput] = useState<string>("1")
 
   const getMinDate = () => {
     const now = new Date()
@@ -68,42 +97,50 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
 
   const getMaxDate = () => getBrasiliaDate(0)
 
-  const formatDateForDisplay = (dateString: string) => {
-    if (!dateString) return ""
-    const date = new Date(dateString)
-    const day = date.getDate().toString().padStart(2, "0")
-    const month = (date.getMonth() + 1).toString().padStart(2, "0")
-    const hours = date.getHours().toString().padStart(2, "0")
-    const minutes = date.getMinutes().toString().padStart(2, "0")
-    return `${day}/${month}, ${hours}:${minutes}`
-  }
-
-  const formatNumber = (value: number): string => {
-    return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
-  }
-
-  // Filtrar dados baseado no intervalo de data
-  useEffect(() => {
-    if (!startDate || !endDate) {
-      setFilteredData(data)
+  // Envolver fetchData em useCallback
+  const fetchData = useCallback(async () => {
+    if (!shardIdInput) {
+      setError("Por favor, preencha o Shard ID para pesquisar.")
+      setData([])
+      setLoading(false)
       return
     }
 
-    const start = new Date(startDate + ":00.000Z")
-    const end = new Date(endDate + ":00.000Z")
+    setLoading(true)
+    setError(null)
+    try {
+      const payload = {
+        ShardId: Number.parseInt(shardIdInput),
+        from: new Date(startDate).toISOString(),
+        to: new Date(endDate).toISOString(),
+      }
 
-    const filtered = data.filter((webhook: HistoricWebhookData) => {
-      const webhookDate = new Date(webhook.DateTime)
-      return webhookDate >= start && webhookDate <= end
-    })
+      const result = await fetchHistoricCentral(payload)
+      setData(result)
+    } catch (err) {
+      console.error("Failed to fetch historic central data:", err)
+      setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
+      setData([])
+    } finally {
+      setLoading(false)
+    }
+  }, [startDate, endDate, shardIdInput])
 
-    setFilteredData(filtered)
-  }, [startDate, endDate, data])
+  // O useEffect agora depende de 'triggerSearch' e da função 'fetchData' memoizada
+  useEffect(() => {
+    if (triggerSearch) {
+      fetchData()
+      setTriggerSearch(false)
+    }
+  }, [triggerSearch, fetchData])
 
   const clearFilters = () => {
     setStartDate(getDefaultStartDate())
     setEndDate(getDefaultEndDate())
-    setSelectedShard(null)
+    setShardIdInput("1")
+    setData([])
+    setError(null)
+    setTriggerSearch(false)
   }
 
   const setQuickFilter = (hours: number) => {
@@ -113,22 +150,9 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
     setEndDate(endTime)
   }
 
-  // Obter shards únicos dos dados filtrados
-  const uniqueShards = useMemo(() => {
-    return Array.from(new Set(filteredData.map((item: HistoricWebhookData) => item.shard_id))).sort(
-      (a: number, b: number) => a - b,
-    )
-  }, [filteredData])
-
-  // Filtrar dados por shard selecionado
-  const shardFilteredData = useMemo(() => {
-    if (selectedShard === null) return filteredData
-    return filteredData.filter((item: HistoricWebhookData) => item.shard_id === selectedShard)
-  }, [filteredData, selectedShard])
-
   // Calcular estatísticas
   const stats = useMemo(() => {
-    if (shardFilteredData.length === 0) {
+    if (data.length === 0) {
       return {
         webhooks: { avg: 0, max: 0, total: 0 },
         events: { avg: 0, max: 0, total: 0 },
@@ -149,7 +173,7 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
     let totalAutomations = 0
     let maxAutomations = 0
 
-    shardFilteredData.forEach((item: HistoricWebhookData) => {
+    data.forEach((item: HistoricWebhookData) => {
       totalWebhooks += item.webhooks_count
       maxWebhooks = Math.max(maxWebhooks, item.webhooks_count)
 
@@ -166,7 +190,7 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
       maxAutomations = Math.max(maxAutomations, item.automations_count)
     })
 
-    const count = shardFilteredData.length
+    const count = data.length
 
     return {
       webhooks: {
@@ -195,11 +219,11 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
         total: totalAutomations,
       },
     }
-  }, [shardFilteredData])
+  }, [data])
 
   // Preparar dados para o gráfico
   const chartData = useMemo(() => {
-    const sortedData = [...shardFilteredData].sort(
+    const sortedData = [...data].sort(
       (a: HistoricWebhookData, b: HistoricWebhookData) =>
         new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime(),
     )
@@ -275,28 +299,28 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
       // Modo de barras - mostrar apenas a métrica selecionada
       let label = "Webhooks"
       let color = COLORS.primary
-      let data = reducedData.map((item: HistoricWebhookData) => item.webhooks_count)
+      let chartData = reducedData.map((item: HistoricWebhookData) => item.webhooks_count)
 
       switch (selectedMetric) {
         case "events_count":
           label = "Events"
           color = COLORS.secondary
-          data = reducedData.map((item: HistoricWebhookData) => item.events_count)
+          chartData = reducedData.map((item: HistoricWebhookData) => item.events_count)
           break
         case "changes_reports_count":
           label = "Changes Reports"
           color = COLORS.accent1
-          data = reducedData.map((item: HistoricWebhookData) => item.changes_reports_count)
+          chartData = reducedData.map((item: HistoricWebhookData) => item.changes_reports_count)
           break
         case "changelogs_count":
           label = "Changelogs"
           color = COLORS.accent2
-          data = reducedData.map((item: HistoricWebhookData) => item.changelogs_count)
+          chartData = reducedData.map((item: HistoricWebhookData) => item.changelogs_count)
           break
         case "automations_count":
           label = "Automations"
           color = COLORS.accent3
-          data = reducedData.map((item: HistoricWebhookData) => item.automations_count)
+          chartData = reducedData.map((item: HistoricWebhookData) => item.automations_count)
           break
       }
 
@@ -305,7 +329,7 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
         datasets: [
           {
             label,
-            data,
+            data: chartData,
             backgroundColor: color,
             borderColor: color,
             borderWidth: 1,
@@ -313,7 +337,7 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
         ],
       }
     }
-  }, [shardFilteredData, viewMode, selectedMetric])
+  }, [data, viewMode, selectedMetric])
 
   const chartOptions: ChartOptions<"line"> = {
     responsive: true,
@@ -437,7 +461,7 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Filas</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {formatDateForDisplay(startDate)} até {formatDateForDisplay(endDate)}
-            {selectedShard !== null && ` • Shard ${selectedShard}`}
+            {shardIdInput && ` • Shard ${shardIdInput}`}
           </p>
         </div>
 
@@ -520,7 +544,11 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
                 <input
                   type="datetime-local"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setStartDate(e.target.value)
+                    setData([])
+                    setError(null)
+                  }}
                   min={getMinDate()}
                   max={getMaxDate()}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
@@ -535,7 +563,11 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
                 <input
                   type="datetime-local"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setEndDate(e.target.value)
+                    setData([])
+                    setError(null)
+                  }}
                   min={startDate || getMinDate()}
                   max={getMaxDate()}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
@@ -556,31 +588,51 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros Rápidos</label>
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setQuickFilter(1)}
+                  onClick={() => {
+                    setQuickFilter(1)
+                    setData([])
+                    setError(null)
+                  }}
                   className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                 >
                   Última hora
                 </button>
                 <button
-                  onClick={() => setQuickFilter(6)}
+                  onClick={() => {
+                    setQuickFilter(6)
+                    setData([])
+                    setError(null)
+                  }}
                   className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                 >
                   Últimas 6h
                 </button>
                 <button
-                  onClick={() => setQuickFilter(24)}
+                  onClick={() => {
+                    setQuickFilter(24)
+                    setData([])
+                    setError(null)
+                  }}
                   className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                 >
                   Últimas 24h
                 </button>
                 <button
-                  onClick={() => setQuickFilter(168)}
+                  onClick={() => {
+                    setQuickFilter(168)
+                    setData([])
+                    setError(null)
+                  }}
                   className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                 >
                   Última semana
                 </button>
                 <button
-                  onClick={() => setQuickFilter(720)}
+                  onClick={() => {
+                    setQuickFilter(720)
+                    setData([])
+                    setError(null)
+                  }}
                   className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                 >
                   Últimos 30 dias
@@ -588,345 +640,361 @@ export default function HistoricWebhookDataComponent({ data }: HistoricWebhookDa
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Selecionar Shard
-              </label>
-              <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shard ID</label>
+                <input
+                  type="number"
+                  value={shardIdInput}
+                  onChange={(e) => {
+                    setShardIdInput(e.target.value)
+                    setData([])
+                    setError(null)
+                  }}
+                  placeholder="Ex: 1"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+                />
+              </div>
+              <div className="flex items-end">
                 <button
-                  onClick={() => setSelectedShard(null)}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                    selectedShard === null
-                      ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
+                  onClick={() => {
+                    if (!shardIdInput) {
+                      setError("Por favor, preencha o Shard ID para pesquisar.")
+                      setData([])
+                      return
+                    }
+                    setError(null)
+                    setTriggerSearch(true)
+                  }}
+                  disabled={loading || !shardIdInput}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Todos os Shards
+                  {loading ? "..." : "Pesquisar"}
                 </button>
-                {uniqueShards.map((shardId: number) => (
-                  <button
-                    key={shardId}
-                    onClick={() => setSelectedShard(shardId)}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedShard === shardId
-                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Shard {shardId}
-                  </button>
-                ))}
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard
-          title="Webhooks"
-          value={formatNumber(stats.webhooks.avg)}
-          subValue={`Máx: ${formatNumber(stats.webhooks.max)}`}
-          icon={
-            <svg
-              className="w-5 h-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-          }
-          color="bg-indigo-600 dark:bg-indigo-500 text-white"
-        />
-        <StatCard
-          title="Events"
-          value={formatNumber(stats.events.avg)}
-          subValue={`Máx: ${formatNumber(stats.events.max)}`}
-          icon={
-            <svg
-              className="w-5 h-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          }
-          color="bg-sky-500 dark:bg-sky-600 text-white"
-        />
-        <StatCard
-          title="Changes Reports"
-          value={formatNumber(stats.changes.avg)}
-          subValue={`Máx: ${formatNumber(stats.changes.max)}`}
-          icon={
-            <svg
-              className="w-5 h-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-          }
-          color="bg-orange-500 dark:bg-orange-600 text-white"
-        />
-        <StatCard
-          title="Changelogs"
-          value={formatNumber(stats.changelogs.avg)}
-          subValue={`Máx: ${formatNumber(stats.changelogs.max)}`}
-          icon={
-            <svg
-              className="w-5 h-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 20h9"></path>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-            </svg>
-          }
-          color="bg-emerald-500 dark:bg-emerald-600 text-white"
-        />
-        <StatCard
-          title="Automations"
-          value={formatNumber(stats.automations.avg)}
-          subValue={`Máx: ${formatNumber(stats.automations.max)}`}
-          icon={
-            <svg
-              className="w-5 h-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 20V10"></path>
-              <path d="M12 20V4"></path>
-              <path d="M6 20v-6"></path>
-            </svg>
-          }
-          color="bg-violet-500 dark:bg-violet-600 text-white"
-        />
-      </div>
-
-      {/* Seletor de métricas */}
-      {viewMode !== "table" && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-          <div className="mb-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Selecionar Métrica
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedMetric("all")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                  selectedMetric === "all"
-                    ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Todas as Métricas
-              </button>
-              <button
-                onClick={() => setSelectedMetric("webhooks_count")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                  selectedMetric === "webhooks_count"
-                    ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Webhooks
-              </button>
-              <button
-                onClick={() => setSelectedMetric("events_count")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                  selectedMetric === "events_count"
-                    ? "bg-sky-500 dark:bg-sky-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Events
-              </button>
-              <button
-                onClick={() => setSelectedMetric("changes_reports_count")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                  selectedMetric === "changes_reports_count"
-                    ? "bg-orange-500 dark:bg-orange-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Changes Reports
-              </button>
-              <button
-                onClick={() => setSelectedMetric("changelogs_count")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                  selectedMetric === "changelogs_count"
-                    ? "bg-emerald-500 dark:bg-emerald-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Changelogs
-              </button>
-              <button
-                onClick={() => setSelectedMetric("automations_count")}
-                className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                  selectedMetric === "automations_count"
-                    ? "bg-violet-500 dark:bg-violet-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-              >
-                Automations
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[400px]">
-            <Line data={chartData} options={chartOptions} />
-          </div>
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-md text-red-700 dark:text-red-300">
+          {error}
         </div>
       )}
 
-      {/* Tabela de dados */}
-      {viewMode === "table" && filteredData.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors duration-300">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Shard ID
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Webhooks
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Events
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Changes Reports
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Changelogs
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Automations
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    Data/Hora
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {shardFilteredData
-                  .sort(
-                    (a: HistoricWebhookData, b: HistoricWebhookData) =>
-                      new Date(b.DateTime).getTime() - new Date(a.DateTime).getTime(),
-                  )
-                  .slice(0, 100) // Limitar a 100 registros para performance
-                  .map((item: HistoricWebhookData, index: number) => (
-                    <tr
-                      key={`${item.shard_id}-${item.DateTime}`}
-                      className={index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700/50"}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {item.shard_id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {formatNumber(item.webhooks_count)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {formatNumber(item.events_count)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {formatNumber(item.changes_reports_count)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {formatNumber(item.changelogs_count)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {formatNumber(item.automations_count)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {new Date(new Date(item.DateTime).getTime() - 3 * 60 * 60 * 1000)
-                          .toLocaleString("pt-BR", {
-                            year: "2-digit",
-                            month: "2-digit",
-                            day: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })
-                          .replace(",", " -")}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-          {shardFilteredData.length > 100 && (
-            <div className="bg-gray-50 dark:bg-gray-700 px-6 py-3 text-sm text-gray-500 dark:text-gray-300">
-              Mostrando 100 de {shardFilteredData.length} registros
-            </div>
-          )}
+      {loading ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className="text-lg font-medium text-gray-900 dark:text-white">Carregando dados...</p>
         </div>
-      )}
-
-      {filteredData.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center transition-colors duration-300">
-          <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+      ) : data.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <List className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
           <p className="text-lg font-medium text-gray-900 dark:text-white">Nenhum dado encontrado</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Tente ajustar o filtro de data ou usar os filtros rápidos
+            Ajuste os filtros de data e preencha o Shard ID para pesquisar.
           </p>
         </div>
+      ) : (
+        <>
+          {/* Estatísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <StatCard
+              title="Webhooks"
+              value={formatNumber(stats.webhooks.avg)}
+              subValue={`Máx: ${formatNumber(stats.webhooks.max)}`}
+              icon={
+                <svg
+                  className="w-5 h-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                </svg>
+              }
+              color="bg-indigo-600 dark:bg-indigo-500 text-white"
+            />
+            <StatCard
+              title="Events"
+              value={formatNumber(stats.events.avg)}
+              subValue={`Máx: ${formatNumber(stats.events.max)}`}
+              icon={
+                <svg
+                  className="w-5 h-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              }
+              color="bg-sky-500 dark:bg-sky-600 text-white"
+            />
+            <StatCard
+              title="Changes Reports"
+              value={formatNumber(stats.changes.avg)}
+              subValue={`Máx: ${formatNumber(stats.changes.max)}`}
+              icon={
+                <svg
+                  className="w-5 h-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              }
+              color="bg-orange-500 dark:bg-orange-600 text-white"
+            />
+            <StatCard
+              title="Changelogs"
+              value={formatNumber(stats.changelogs.avg)}
+              subValue={`Máx: ${formatNumber(stats.changelogs.max)}`}
+              icon={
+                <svg
+                  className="w-5 h-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+              }
+              color="bg-emerald-500 dark:bg-emerald-600 text-white"
+            />
+            <StatCard
+              title="Automations"
+              value={formatNumber(stats.automations.avg)}
+              subValue={`Máx: ${formatNumber(stats.automations.max)}`}
+              icon={
+                <svg
+                  className="w-5 h-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 20V10"></path>
+                  <path d="M12 20V4"></path>
+                  <path d="M6 20v-6"></path>
+                </svg>
+              }
+              color="bg-violet-500 dark:bg-violet-600 text-white"
+            />
+          </div>
+
+          {/* Seletor de métricas */}
+          {viewMode !== "table" && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
+              <div className="mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Selecionar Métrica
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedMetric("all")}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      selectedMetric === "all"
+                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Todas as Métricas
+                  </button>
+                  <button
+                    onClick={() => setSelectedMetric("webhooks_count")}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      selectedMetric === "webhooks_count"
+                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Webhooks
+                  </button>
+                  <button
+                    onClick={() => setSelectedMetric("events_count")}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      selectedMetric === "events_count"
+                        ? "bg-sky-500 dark:bg-sky-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Events
+                  </button>
+                  <button
+                    onClick={() => setSelectedMetric("changes_reports_count")}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      selectedMetric === "changes_reports_count"
+                        ? "bg-orange-500 dark:bg-orange-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Changes Reports
+                  </button>
+                  <button
+                    onClick={() => setSelectedMetric("changelogs_count")}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      selectedMetric === "changelogs_count"
+                        ? "bg-emerald-500 dark:bg-emerald-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Changelogs
+                  </button>
+                  <button
+                    onClick={() => setSelectedMetric("automations_count")}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                      selectedMetric === "automations_count"
+                        ? "bg-violet-500 dark:bg-violet-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Automations
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-[400px]">
+                <Line data={chartData} options={chartOptions} />
+              </div>
+            </div>
+          )}
+
+          {/* Tabela de dados */}
+          {viewMode === "table" && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors duration-300">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Shard ID
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Webhooks
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Events
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Changes Reports
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Changelogs
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Automations
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                      >
+                        Data/Hora
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {data
+                      .sort(
+                        (a: HistoricWebhookData, b: HistoricWebhookData) =>
+                          new Date(b.DateTime).getTime() - new Date(a.DateTime).getTime(),
+                      )
+                      .slice(0, 100) // Limitar a 100 registros para performance
+                      .map((item: HistoricWebhookData, index: number) => (
+                        <tr
+                          key={`${item.shard_id}-${item.DateTime}`}
+                          className={index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700/50"}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                            {item.shard_id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {formatNumber(item.webhooks_count)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {formatNumber(item.events_count)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {formatNumber(item.changes_reports_count)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {formatNumber(item.changelogs_count)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {formatNumber(item.automations_count)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                            {new Date(new Date(item.DateTime).getTime() - 3 * 60 * 60 * 1000)
+                              .toLocaleString("pt-BR", {
+                                year: "2-digit",
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              })
+                              .replace(",", " -")}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+              {data.length > 100 && (
+                <div className="bg-gray-50 dark:bg-gray-700 px-6 py-3 text-sm text-gray-500 dark:text-gray-300">
+                  Mostrando 100 de {data.length} registros
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

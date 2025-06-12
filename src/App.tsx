@@ -1,25 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, LogOut, BarChart3, Database, Link, Zap } from "lucide-react" // Importar Link e Zap icons
+import { RefreshCw, LogOut, BarChart3, Link, Zap } from "lucide-react"
 import { motion } from "framer-motion"
 import { Login } from "./components/Login"
 import { setAuthToken, removeAuthToken } from "./utils/auth"
-import HistoricShardData from "./components/HistoricShardData"
-import { mockHistoricShardData } from "./data/mockHistoricData"
 import HistoricWebhookData from "./components/HistoricWebhookData"
-import { mockHistoricWebhookData } from "./data/mockHistoricWebhookData"
-import HistoricWebhookDetails from "./components/HistoricWebhookDetails" // Importar novo componente
-import HistoricAutomations from "./components/HistoricAutomations" // Importar novo componente
+import HistoricWebhookDetails from "./components/HistoricWebhookDetails"
+import HistoricAutomations from "./components/HistoricAutomations"
 import { ThemeToggle } from "./components/ThemeToggle"
 
 export default function App() {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [activeTab, setActiveTab] = useState<"shards" | "webhooks" | "historicWebhooks" | "historicAutomations">(
-    "shards",
-  )
+  const [activeTab, setActiveTab] = useState<"webhooks" | "historicWebhooks" | "historicAutomations">("webhooks")
 
   useEffect(() => {
     setIsAuthenticated(!!localStorage.getItem("userKey"))
@@ -77,8 +72,8 @@ export default function App() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Monitor por Shard</h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">Sistema de monitoramento histórico</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Sistema de Monitoramento</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">Monitoramento histórico de filas e automações</p>
           </div>
           <div className="flex items-center space-x-3">
             <ThemeToggle />
@@ -138,17 +133,6 @@ export default function App() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-1 transition-colors duration-300">
             <nav className="flex space-x-1">
               <button
-                onClick={() => setActiveTab("shards")}
-                className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
-                  activeTab === "shards"
-                    ? "bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
-                }`}
-              >
-                <Database className="w-4 h-4 mr-2" />
-                Monitor por Shard
-              </button>
-              <button
                 onClick={() => setActiveTab("webhooks")}
                 className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
                   activeTab === "webhooks"
@@ -192,12 +176,7 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {activeTab === "shards" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
-              <HistoricShardData data={mockHistoricShardData} />
-            </div>
-          )}
-          {activeTab === "webhooks" && <HistoricWebhookData data={mockHistoricWebhookData} />}
+          {activeTab === "webhooks" && <HistoricWebhookData />}
           {activeTab === "historicWebhooks" && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
               <HistoricWebhookDetails />

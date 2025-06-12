@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Calendar, Filter, ChevronDown, ChevronUp, List } from "lucide-react"
-import { fetchHistoricAutomations } from "../utils/api"
+import { fetchHistoricWebhooksDetails } from "../utils/api"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -20,9 +20,9 @@ import { Line } from "react-chartjs-2"
 // Registrar componentes do Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
-export interface HistoricAutomationItem {
+export interface HistoricWebhookDetailItem {
   AccountId: number
-  AutomationId: number
+  WebhookId: number
   Quantity: number
   ShardId: number
   DateTime: string
@@ -69,12 +69,12 @@ const formatNumber = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
 }
 
-export default function HistoricAutomations() {
-  const [data, setData] = useState<HistoricAutomationItem[]>([])
+export default function HistoricWebhookDetails() {
+  const [data, setData] = useState<HistoricWebhookDetailItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(false)
-  const [selectedAutomationId, setSelectedAutomationId] = useState<number | null>(null) // Alterado para AutomationId
+  const [selectedWebhookId, setSelectedWebhookId] = useState<number | null>(null) // Alterado para WebhookId
 
   const [showFilters, setShowFilters] = useState(false)
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate())
@@ -116,11 +116,11 @@ export default function HistoricAutomations() {
         payload.AccountId = Number.parseInt(accountIdInput)
       }
 
-      const result = await fetchHistoricAutomations(payload)
+      const result = await fetchHistoricWebhooksDetails(payload)
       setData(result)
-      setSelectedAutomationId(null) // Reset automation selection when new data is loaded
+      setSelectedWebhookId(null) // Reset webhook selection when new data is loaded
     } catch (err) {
-      console.error("Failed to fetch historic automations:", err)
+      console.error("Failed to fetch historic webhook details:", err)
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
     } finally {
@@ -145,7 +145,7 @@ export default function HistoricAutomations() {
     setData([])
     setError(null)
     setTriggerSearch(false)
-    setSelectedAutomationId(null)
+    setSelectedWebhookId(null)
   }
 
   const setQuickFilter = (hours: number) => {
@@ -155,30 +155,30 @@ export default function HistoricAutomations() {
     setEndDate(endTime)
   }
 
-  // Calcular Automation IDs únicos ordenados por soma total
-  const automationIdsSorted = useMemo(() => {
-    const automationTotals = new Map<number, number>()
+  // Calcular Webhook IDs únicos ordenados por soma total
+  const webhookIdsSorted = useMemo(() => {
+    const webhookTotals = new Map<number, number>()
 
     data.forEach((item) => {
-      const current = automationTotals.get(item.AutomationId) || 0
-      automationTotals.set(item.AutomationId, current + item.Quantity)
+      const current = webhookTotals.get(item.WebhookId) || 0
+      webhookTotals.set(item.WebhookId, current + item.Quantity)
     })
 
-    return Array.from(automationTotals.entries())
+    return Array.from(webhookTotals.entries())
       .sort((a, b) => b[1] - a[1]) // Ordenar por total decrescente
-      .map(([automationId, total]) => ({ automationId, total }))
+      .map(([webhookId, total]) => ({ webhookId, total }))
   }, [data])
 
-  // Filtrar dados baseado no Automation ID selecionado
+  // Filtrar dados baseado no Webhook ID selecionado
   const filteredData = useMemo(() => {
-    if (selectedAutomationId === null) return data
-    return data.filter((item) => item.AutomationId === selectedAutomationId)
-  }, [data, selectedAutomationId])
+    if (selectedWebhookId === null) return data
+    return data.filter((item) => item.WebhookId === selectedWebhookId)
+  }, [data, selectedWebhookId])
 
   // Preparar dados para o gráfico
   const chartData = useMemo(() => {
     const sortedData = [...filteredData].sort(
-      (a: HistoricAutomationItem, b: HistoricAutomationItem) =>
+      (a: HistoricWebhookDetailItem, b: HistoricWebhookDetailItem) =>
         new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime(),
     )
 
@@ -188,11 +188,11 @@ export default function HistoricAutomations() {
     const reducedData = step > 1 ? sortedData.filter((_, index) => index % step === 0) : sortedData
 
     return {
-      labels: reducedData.map((item: HistoricAutomationItem) => formatDateForDisplay(item.DateTime)),
+      labels: reducedData.map((item: HistoricWebhookDetailItem) => formatDateForDisplay(item.DateTime)),
       datasets: [
         {
-          label: selectedAutomationId ? `Automation ${selectedAutomationId} - Quantity` : "Quantity",
-          data: reducedData.map((item: HistoricAutomationItem) => item.Quantity),
+          label: selectedWebhookId ? `Webhook ${selectedWebhookId} - Quantity` : "Quantity",
+          data: reducedData.map((item: HistoricWebhookDetailItem) => item.Quantity),
           borderColor: COLORS.primary,
           backgroundColor: `${COLORS.primary}33`, // 20% opacity
           borderWidth: 2,
@@ -202,7 +202,7 @@ export default function HistoricAutomations() {
         },
       ],
     }
-  }, [filteredData, selectedAutomationId])
+  }, [filteredData, selectedWebhookId])
 
   const chartOptions: ChartOptions<"line"> = {
     responsive: true,
@@ -244,11 +244,11 @@ export default function HistoricAutomations() {
         callbacks: {
           label: (context) => {
             const dataPoint = filteredData[context.dataIndex]
-            if (selectedAutomationId === null) {
+            if (selectedWebhookId === null) {
               // Quando "Todos" está selecionado, mostrar apenas Quantity
               return `Quantity: ${formatNumber(context.parsed.y)}`
             } else {
-              // Quando um AutomationId específico está selecionado, mostrar Account ID e Quantity
+              // Quando um WebhookId específico está selecionado, mostrar Account ID e Quantity
               return [`Account ID: ${dataPoint?.AccountId || "N/A"}`, `Quantity: ${formatNumber(context.parsed.y)}`]
             }
           },
@@ -305,12 +305,12 @@ export default function HistoricAutomations() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Automações</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Webhooks</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {formatDateForDisplay(startDate)} até {formatDateForDisplay(endDate)}
             {(shardIdInput || accountIdInput) &&
               ` • ${selectedSearchType === "shard" ? "Shard" : "Account"} ID: ${selectedSearchType === "shard" ? shardIdInput : accountIdInput}`}
-            {selectedAutomationId && ` • Visualizando Automation ${selectedAutomationId}`}
+            {selectedWebhookId && ` • Visualizando Webhook ${selectedWebhookId}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -545,13 +545,13 @@ export default function HistoricAutomations() {
             </div>
           </div>
 
-          {/* Seleção de Automation IDs */}
-          {automationIdsSorted.length > 1 && (
+          {/* Seleção de Webhook IDs */}
+          {webhookIdsSorted.length > 1 && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Automation ID</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Webhook ID</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Clique em um Automation ID para visualizar apenas seus dados. Ordenados por quantidade total (maior
+                  Clique em um Webhook ID para visualizar apenas seus dados. Ordenados por quantidade total (maior
                   primeiro).
                 </p>
               </div>
@@ -559,9 +559,9 @@ export default function HistoricAutomations() {
               <div className="flex flex-wrap gap-2">
                 {/* Botão "Todos" */}
                 <motion.button
-                  onClick={() => setSelectedAutomationId(null)}
+                  onClick={() => setSelectedWebhookId(null)}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedAutomationId === null
+                    selectedWebhookId === null
                       ? "bg-indigo-600 dark:bg-indigo-500 text-white"
                       : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
@@ -571,20 +571,20 @@ export default function HistoricAutomations() {
                   Todos ({data.length} registros)
                 </motion.button>
 
-                {/* Botões para cada Automation ID */}
-                {automationIdsSorted.map(({ automationId, total }) => (
+                {/* Botões para cada Webhook ID */}
+                {webhookIdsSorted.map(({ webhookId, total }) => (
                   <motion.button
-                    key={automationId}
-                    onClick={() => setSelectedAutomationId(automationId)}
+                    key={webhookId}
+                    onClick={() => setSelectedWebhookId(webhookId)}
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      selectedAutomationId === automationId
+                      selectedWebhookId === webhookId
                         ? "bg-indigo-600 dark:bg-indigo-500 text-white"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    {automationId}
+                    {webhookId}
                     <span className="ml-1 text-xs opacity-75">({formatNumber(total)})</span>
                   </motion.button>
                 ))}
