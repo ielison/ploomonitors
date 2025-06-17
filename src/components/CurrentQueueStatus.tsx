@@ -448,3 +448,5 @@ export default function CurrentQueueStatus() {
     </div>
   )
 }
+
+/* teste */
