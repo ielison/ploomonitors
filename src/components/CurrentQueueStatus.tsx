@@ -55,28 +55,22 @@ const formatNumber = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
 }
 
-// Função para formatar data/hora - corrigida para mostrar a hora UTC corretamente
+// Função para formatar data/hora - corrigida para o fuso horário brasileiro (GMT-3)
 const formatDateTime = (dateString: string): string => {
   if (!dateString) return ""
 
   const date = new Date(dateString)
 
-  // Se a string termina com 'Z', é UTC - vamos mostrar a hora UTC
-  if (dateString.endsWith("Z")) {
-    const day = date.getUTCDate().toString().padStart(2, "0")
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, "0")
-    const year = date.getUTCFullYear().toString().slice(-2)
-    const hours = date.getUTCHours().toString().padStart(2, "0")
-    const minutes = date.getUTCMinutes().toString().padStart(2, "0")
-    return `${day}/${month}/${year} - ${hours}:${minutes}`
-  }
+  // Converter para o horário brasileiro (GMT-3)
+  // Subtraímos 3 horas do UTC para obter o horário brasileiro
+  const brasiliaTime = new Date(date.getTime() - 3 * 60 * 60 * 1000)
 
-  // Para outras datas, usar o fuso horário local
-  const day = date.getDate().toString().padStart(2, "0")
-  const month = (date.getMonth() + 1).toString().padStart(2, "0")
-  const year = date.getFullYear().toString().slice(-2)
-  const hours = date.getHours().toString().padStart(2, "0")
-  const minutes = date.getMinutes().toString().padStart(2, "0")
+  const day = brasiliaTime.getUTCDate().toString().padStart(2, "0")
+  const month = (brasiliaTime.getUTCMonth() + 1).toString().padStart(2, "0")
+  const year = brasiliaTime.getUTCFullYear().toString().slice(-2)
+  const hours = brasiliaTime.getUTCHours().toString().padStart(2, "0")
+  const minutes = brasiliaTime.getUTCMinutes().toString().padStart(2, "0")
+
   return `${day}/${month}/${year} - ${hours}:${minutes}`
 }
 

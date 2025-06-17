@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Calendar, Filter, ChevronDown, ChevronUp, List } from "lucide-react"
+import { motion } from "framer-motion"
+import { Calendar, List } from "lucide-react"
 import { fetchHistoricAutomations } from "../utils/api"
 import {
   Chart as ChartJS,
@@ -46,9 +46,16 @@ const COLORS = {
 // Função para obter data/hora no horário de Brasília (GMT-3)
 const getBrasiliaDate = (offsetHours = 0) => {
   const now = new Date()
-  const brasiliaTime = new Date(now.getTime() - 3 * 60 * 60 * 1000)
-  brasiliaTime.setHours(brasiliaTime.getHours() + offsetHours)
+  // Obter o timestamp atual e ajustar para GMT-3
+  const brasiliaTime = new Date(now.getTime() - 3 * 60 * 60 * 1000 + offsetHours * 60 * 60 * 1000)
   return brasiliaTime.toISOString().slice(0, 16)
+}
+
+// Função para converter datetime-local string diretamente para ISO sem conversão de fuso
+const convertToISOWithoutTimezone = (datetimeLocalString: string) => {
+  // Input: "2025-06-17T13:32"
+  // Output: "2025-06-17T13:32:00.000Z"
+  return `${datetimeLocalString}:00.000Z`
 }
 
 const getDefaultStartDate = () => getBrasiliaDate(-24 * 7) // 7 dias atrás
@@ -57,11 +64,13 @@ const getDefaultEndDate = () => getBrasiliaDate(0) // hora atual
 const formatDateForDisplay = (dateString: string) => {
   if (!dateString) return ""
   const date = new Date(dateString)
-  const day = date.getDate().toString().padStart(2, "0")
-  const month = (date.getMonth() + 1).toString().padStart(2, "0")
-  const hours = date.getHours().toString().padStart(2, "0")
-  const minutes = date.getMinutes().toString().padStart(2, "0")
-  const seconds = date.getSeconds().toString().padStart(2, "0")
+  // Converter para horário brasileiro (GMT-3)
+  const brasiliaTime = new Date(date.getTime() - 3 * 60 * 60 * 1000)
+  const day = brasiliaTime.getUTCDate().toString().padStart(2, "0")
+  const month = (brasiliaTime.getUTCMonth() + 1).toString().padStart(2, "0")
+  const hours = brasiliaTime.getUTCHours().toString().padStart(2, "0")
+  const minutes = brasiliaTime.getUTCMinutes().toString().padStart(2, "0")
+  const seconds = brasiliaTime.getUTCSeconds().toString().padStart(2, "0")
   return `${day}/${month}, ${hours}:${minutes}:${seconds}`
 }
 
@@ -76,7 +85,6 @@ export default function HistoricAutomations() {
   const [triggerSearch, setTriggerSearch] = useState(false)
   const [selectedAutomationId, setSelectedAutomationId] = useState<number | null>(null) // Alterado para AutomationId
 
-  const [showFilters, setShowFilters] = useState(false)
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate())
   const [endDate, setEndDate] = useState<string>(getDefaultEndDate())
   const [shardIdInput, setShardIdInput] = useState<string>("")
@@ -106,8 +114,9 @@ export default function HistoricAutomations() {
     setError(null)
     try {
       const payload: { from: string; to: string; ShardId?: number; AccountId?: number } = {
-        from: new Date(startDate).toISOString(),
-        to: new Date(endDate).toISOString(),
+        // Enviar as datas exatamente como digitadas, sem conversão de fuso horário
+        from: convertToISOWithoutTimezone(startDate),
+        to: convertToISOWithoutTimezone(endDate),
       }
 
       if (selectedSearchType === "shard" && shardIdInput) {
@@ -115,6 +124,8 @@ export default function HistoricAutomations() {
       } else if (selectedSearchType === "account" && accountIdInput) {
         payload.AccountId = Number.parseInt(accountIdInput)
       }
+
+      console.log("Payload sendo enviado:", payload) // Debug para verificar as datas
 
       const result = await fetchHistoricAutomations(payload)
       setData(result)
@@ -313,208 +324,185 @@ export default function HistoricAutomations() {
             {selectedAutomationId && ` • Visualizando Automation ${selectedAutomationId}`}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-            {showFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
-          </button>
-        </div>
       </div>
 
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 overflow-hidden"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Data/Hora Inicial
-                </label>
-                <input
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value)
-                    setData([])
-                    setError(null)
-                  }}
-                  min={getMinDate()}
-                  max={getMaxDate()}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Data/Hora Final
-                </label>
-                <input
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value)
-                    setData([])
-                    setError(null)
-                  }}
-                  min={startDate || getMinDate()}
-                  max={getMaxDate()}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={clearFilters}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Limpar Filtros
-                </button>
-              </div>
-            </div>
+      {/* Filtros sempre visíveis */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Data/Hora Inicial
+            </label>
+            <input
+              type="datetime-local"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value)
+                setData([])
+                setError(null)
+              }}
+              min={getMinDate()}
+              max={getMaxDate()}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Data/Hora Final
+            </label>
+            <input
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value)
+                setData([])
+                setError(null)
+              }}
+              min={startDate || getMinDate()}
+              max={getMaxDate()}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Limpar Filtros
+            </button>
+          </div>
+        </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros Rápidos</label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => {
-                    setQuickFilter(1)
-                    setData([])
-                    setError(null)
-                  }}
-                  className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                >
-                  Última hora
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickFilter(6)
-                    setData([])
-                    setError(null)
-                  }}
-                  className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                >
-                  Últimas 6h
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickFilter(24)
-                    setData([])
-                    setError(null)
-                  }}
-                  className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                >
-                  Últimas 24h
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickFilter(168)
-                    setData([])
-                    setError(null)
-                  }}
-                  className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                >
-                  Última semana
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickFilter(720)
-                    setData([])
-                    setError(null)
-                  }}
-                  className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                >
-                  Últimos 30 dias
-                </button>
-              </div>
-            </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros Rápidos</label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setQuickFilter(1)
+                setData([])
+                setError(null)
+              }}
+              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+            >
+              Última hora
+            </button>
+            <button
+              onClick={() => {
+                setQuickFilter(6)
+                setData([])
+                setError(null)
+              }}
+              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+            >
+              Últimas 6h
+            </button>
+            <button
+              onClick={() => {
+                setQuickFilter(24)
+                setData([])
+                setError(null)
+              }}
+              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+            >
+              Últimas 24h
+            </button>
+            <button
+              onClick={() => {
+                setQuickFilter(168)
+                setData([])
+                setError(null)
+              }}
+              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+            >
+              Última semana
+            </button>
+            <button
+              onClick={() => {
+                setQuickFilter(720)
+                setData([])
+                setError(null)
+              }}
+              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+            >
+              Últimos 30 dias
+            </button>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Buscar por</label>
-                <select
-                  value={selectedSearchType}
-                  onChange={(e) => {
-                    setSelectedSearchType(e.target.value as "shard" | "account")
-                    setShardIdInput("")
-                    setAccountIdInput("")
-                    setData([])
-                    setError(null)
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                >
-                  <option value="shard">Shard ID</option>
-                  <option value="account">Account ID</option>
-                </select>
-              </div>
-              <div className="flex items-end gap-2">
-                {selectedSearchType === "shard" ? (
-                  <>
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Shard ID
-                      </label>
-                      <input
-                        type="number"
-                        value={shardIdInput}
-                        onChange={(e) => {
-                          setShardIdInput(e.target.value)
-                          setData([])
-                          setError(null)
-                        }}
-                        placeholder="Ex: 1"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Account ID
-                      </label>
-                      <input
-                        type="number"
-                        value={accountIdInput}
-                        onChange={(e) => {
-                          setAccountIdInput(e.target.value)
-                          setData([])
-                          setError(null)
-                        }}
-                        placeholder="Ex: 12345"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                      />
-                    </div>
-                  </>
-                )}
-                <button
-                  onClick={() => {
-                    if (!shardIdInput && !accountIdInput) {
-                      setError("Por favor, preencha o Shard ID ou o Account ID para pesquisar.")
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Buscar por</label>
+            <select
+              value={selectedSearchType}
+              onChange={(e) => {
+                setSelectedSearchType(e.target.value as "shard" | "account")
+                setShardIdInput("")
+                setAccountIdInput("")
+                setData([])
+                setError(null)
+              }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+            >
+              <option value="shard">Shard ID</option>
+              <option value="account">Account ID</option>
+            </select>
+          </div>
+          <div className="flex items-end gap-2">
+            {selectedSearchType === "shard" ? (
+              <>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shard ID</label>
+                  <input
+                    type="number"
+                    value={shardIdInput}
+                    onChange={(e) => {
+                      setShardIdInput(e.target.value)
                       setData([])
-                      return
-                    }
-                    setError(null)
-                    setTriggerSearch(true)
-                  }}
-                  disabled={loading || (!shardIdInput && !accountIdInput)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "..." : "Pesquisar"}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                      setError(null)
+                    }}
+                    placeholder="Ex: 1"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account ID</label>
+                  <input
+                    type="number"
+                    value={accountIdInput}
+                    onChange={(e) => {
+                      setAccountIdInput(e.target.value)
+                      setData([])
+                      setError(null)
+                    }}
+                    placeholder="Ex: 12345"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+                  />
+                </div>
+              </>
+            )}
+            <button
+              onClick={() => {
+                if (!shardIdInput && !accountIdInput) {
+                  setError("Por favor, preencha o Shard ID ou o Account ID para pesquisar.")
+                  setData([])
+                  return
+                }
+                setError(null)
+                setTriggerSearch(true)
+              }}
+              disabled={loading || (!shardIdInput && !accountIdInput)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "..." : "Pesquisar"}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-md text-red-700 dark:text-red-300">
