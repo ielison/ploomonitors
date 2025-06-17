@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, LogOut, BarChart3, Link, Zap, Activity } from "lucide-react"
+import { LogOut, BarChart3, Link, Zap, Activity } from "lucide-react"
 import { motion } from "framer-motion"
 import { Login } from "./components/Login"
 import { setAuthToken, removeAuthToken } from "./utils/auth"
@@ -12,8 +12,6 @@ import HistoricAutomations from "./components/HistoricAutomations"
 import { ThemeToggle } from "./components/ThemeToggle"
 
 export default function App() {
-  const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeTab, setActiveTab] = useState<"current" | "webhooks" | "historicWebhooks" | "historicAutomations">(
     "current",
@@ -23,20 +21,7 @@ export default function App() {
     setIsAuthenticated(!!localStorage.getItem("userKey"))
   }, [])
 
-  const updateData = async () => {
-    try {
-      setLoading(true)
-      // Por enquanto não fazemos nada aqui, pois estamos usando dados mock
-      // Quando o backend estiver pronto, aqui será feita a chamada para buscar dados históricos
-      setError(null)
-    } catch (err: unknown) {
-      setError("Failed to fetch data")
-      console.error("Error fetching data:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+ 
   const handleLogin = async (Email: string, Password: string) => {
     try {
       const response = await fetch("https://internal-api.ploomes.com/Self/Login?$select=UserKey", {
@@ -80,16 +65,7 @@ export default function App() {
           </div>
           <div className="flex items-center space-x-3">
             <ThemeToggle />
-            <motion.button
-              onClick={updateData}
-              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-5 h-5 mr-2 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Atualizando..." : "Atualizar"}
-            </motion.button>
+            
             <motion.button
               onClick={handleLogout}
               className="flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
@@ -102,34 +78,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 mb-6 rounded-md"
-          >
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-red-500 dark:text-red-400"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        
 
         {/* Navigation Tabs */}
         <div className="mb-8">
