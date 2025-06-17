@@ -1,11 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Calendar, Filter, ChevronDown, ChevronUp, BarChart3, LineChart, List } from "lucide-react"
-import { Line } from "react-chartjs-2"
+import { Calendar, Filter, ChevronDown, ChevronUp, List, BarChart3, Table } from "lucide-react"
+import { fetchHistoricCentral } from "../utils/api"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -18,7 +16,7 @@ import {
   Filler,
   type ChartOptions,
 } from "chart.js"
-import { fetchHistoricCentral } from "../utils/api"
+import { Line } from "react-chartjs-2"
 
 // Registrar componentes do Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -33,7 +31,7 @@ export interface HistoricWebhookData {
   DateTime: string
 }
 
-// Cores para o tema
+// Cores para o tema (consistente com outras abas)
 const COLORS = {
   primary: "#4f46e5", // indigo-600
   secondary: "#0ea5e9", // sky-500
@@ -41,12 +39,16 @@ const COLORS = {
   accent2: "#10b981", // emerald-500
   accent3: "#8b5cf6", // violet-500
   accent4: "#ef4444", // red-500
-  background: "#f9fafb", // gray-50
-  card: "#ffffff", // white
-  text: "#1f2937", // gray-800
-  textLight: "#6b7280", // gray-500
-  border: "#e5e7eb", // gray-200
 }
+
+// Métricas disponíveis para seleção (movido para fora do componente)
+const METRICS = [
+  { key: "webhooks_count", label: "Webhooks", color: COLORS.primary },
+  { key: "events_count", label: "Events", color: COLORS.secondary },
+  { key: "changes_reports_count", label: "Changes Reports", color: COLORS.accent1 },
+  { key: "changelogs_count", label: "Changelogs", color: COLORS.accent2 },
+  { key: "automations_count", label: "Automations", color: COLORS.accent3 },
+] as const
 
 // Função para obter data/hora no horário de Brasília (GMT-3)
 const getBrasiliaDate = (offsetHours = 0) => {
@@ -56,7 +58,7 @@ const getBrasiliaDate = (offsetHours = 0) => {
   return brasiliaTime.toISOString().slice(0, 16)
 }
 
-const getDefaultStartDate = () => getBrasiliaDate(-24) // 24 horas atrás
+const getDefaultStartDate = () => getBrasiliaDate(-24 * 7) // 7 dias atrás
 const getDefaultEndDate = () => getBrasiliaDate(0) // hora atual
 
 const formatDateForDisplay = (dateString: string) => {
@@ -74,19 +76,18 @@ const formatNumber = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
 }
 
-export default function HistoricWebhookDataComponent() {
+export default function HistoricWebhookData() {
   const [data, setData] = useState<HistoricWebhookData[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(false)
+  const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"chart" | "table">("chart")
 
-  const [viewMode, setViewMode] = useState<"line" | "bar" | "table">("line")
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedMetric, setSelectedMetric] = useState<string>("webhooks_count")
-
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate())
   const [endDate, setEndDate] = useState<string>(getDefaultEndDate())
-  const [shardIdInput, setShardIdInput] = useState<string>("1")
+  const [shardIdInput, setShardIdInput] = useState<string>("")
 
   const getMinDate = () => {
     const now = new Date()
@@ -99,6 +100,7 @@ export default function HistoricWebhookDataComponent() {
 
   // Envolver fetchData em useCallback
   const fetchData = useCallback(async () => {
+    // Validar se Shard ID foi preenchido
     if (!shardIdInput) {
       setError("Por favor, preencha o Shard ID para pesquisar.")
       setData([])
@@ -117,6 +119,7 @@ export default function HistoricWebhookDataComponent() {
 
       const result = await fetchHistoricCentral(payload)
       setData(result)
+      setSelectedMetric(null) // Reset metric selection when new data is loaded
     } catch (err) {
       console.error("Failed to fetch historic central data:", err)
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
@@ -137,10 +140,11 @@ export default function HistoricWebhookDataComponent() {
   const clearFilters = () => {
     setStartDate(getDefaultStartDate())
     setEndDate(getDefaultEndDate())
-    setShardIdInput("1")
+    setShardIdInput("")
     setData([])
     setError(null)
     setTriggerSearch(false)
+    setSelectedMetric(null)
   }
 
   const setQuickFilter = (hours: number) => {
@@ -150,80 +154,14 @@ export default function HistoricWebhookDataComponent() {
     setEndDate(endTime)
   }
 
-  // Calcular estatísticas
-  const stats = useMemo(() => {
-    if (data.length === 0) {
-      return {
-        webhooks: { avg: 0, max: 0, total: 0 },
-        events: { avg: 0, max: 0, total: 0 },
-        changes: { avg: 0, max: 0, total: 0 },
-        changelogs: { avg: 0, max: 0, total: 0 },
-        automations: { avg: 0, max: 0, total: 0 },
-      }
-    }
-
-    let totalWebhooks = 0
-    let maxWebhooks = 0
-    let totalEvents = 0
-    let maxEvents = 0
-    let totalChanges = 0
-    let maxChanges = 0
-    let totalChangelogs = 0
-    let maxChangelogs = 0
-    let totalAutomations = 0
-    let maxAutomations = 0
-
-    data.forEach((item: HistoricWebhookData) => {
-      totalWebhooks += item.webhooks_count
-      maxWebhooks = Math.max(maxWebhooks, item.webhooks_count)
-
-      totalEvents += item.events_count
-      maxEvents = Math.max(maxEvents, item.events_count)
-
-      totalChanges += item.changes_reports_count
-      maxChanges = Math.max(maxChanges, item.changes_reports_count)
-
-      totalChangelogs += item.changelogs_count
-      maxChangelogs = Math.max(maxChangelogs, item.changelogs_count)
-
-      totalAutomations += item.automations_count
-      maxAutomations = Math.max(maxAutomations, item.automations_count)
-    })
-
-    const count = data.length
-
-    return {
-      webhooks: {
-        avg: Math.round(totalWebhooks / count),
-        max: maxWebhooks,
-        total: totalWebhooks,
-      },
-      events: {
-        avg: Math.round(totalEvents / count),
-        max: maxEvents,
-        total: totalEvents,
-      },
-      changes: {
-        avg: Math.round(totalChanges / count),
-        max: maxChanges,
-        total: totalChanges,
-      },
-      changelogs: {
-        avg: Math.round(totalChangelogs / count),
-        max: maxChangelogs,
-        total: totalChangelogs,
-      },
-      automations: {
-        avg: Math.round(totalAutomations / count),
-        max: maxAutomations,
-        total: totalAutomations,
-      },
-    }
+  // Filtrar dados baseado na métrica selecionada
+  const filteredData = useMemo(() => {
+    return data
   }, [data])
 
   // Preparar dados para o gráfico
   const chartData = useMemo(() => {
-    const sortedData = [...data].sort(
+    const sortedData = [...filteredData].sort(
       (a: HistoricWebhookData, b: HistoricWebhookData) =>
         new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime(),
     )
@@ -233,111 +171,44 @@ export default function HistoricWebhookDataComponent() {
     const step = sortedData.length > maxDataPoints ? Math.floor(sortedData.length / maxDataPoints) : 1
     const reducedData = step > 1 ? sortedData.filter((_, index) => index % step === 0) : sortedData
 
-    // Configurar datasets baseado no modo de visualização
-    if (viewMode === "line") {
-      return {
-        labels: reducedData.map((item: HistoricWebhookData) => formatDateForDisplay(item.DateTime)),
-        datasets: [
-          {
-            label: "Webhooks",
-            data: reducedData.map((item: HistoricWebhookData) => item.webhooks_count),
-            borderColor: COLORS.primary,
-            backgroundColor: `${COLORS.primary}33`, // 20% opacity
-            borderWidth: selectedMetric === "webhooks_count" ? 3 : 1.5,
-            pointRadius: selectedMetric === "webhooks_count" ? 2 : 0,
-            tension: 0.3,
-            fill: selectedMetric === "webhooks_count",
-            hidden: selectedMetric !== "webhooks_count" && selectedMetric !== "all",
-          },
-          {
-            label: "Events",
-            data: reducedData.map((item: HistoricWebhookData) => item.events_count),
-            borderColor: COLORS.secondary,
-            backgroundColor: `${COLORS.secondary}33`,
-            borderWidth: selectedMetric === "events_count" ? 3 : 1.5,
-            pointRadius: selectedMetric === "events_count" ? 2 : 0,
-            tension: 0.3,
-            fill: selectedMetric === "events_count",
-            hidden: selectedMetric !== "events_count" && selectedMetric !== "all",
-          },
-          {
-            label: "Changes Reports",
-            data: reducedData.map((item: HistoricWebhookData) => item.changes_reports_count),
-            borderColor: COLORS.accent1,
-            backgroundColor: `${COLORS.accent1}33`,
-            borderWidth: selectedMetric === "changes_reports_count" ? 3 : 1.5,
-            pointRadius: selectedMetric === "changes_reports_count" ? 2 : 0,
-            tension: 0.3,
-            fill: selectedMetric === "changes_reports_count",
-            hidden: selectedMetric !== "changes_reports_count" && selectedMetric !== "all",
-          },
-          {
-            label: "Changelogs",
-            data: reducedData.map((item: HistoricWebhookData) => item.changelogs_count),
-            borderColor: COLORS.accent2,
-            backgroundColor: `${COLORS.accent2}33`,
-            borderWidth: selectedMetric === "changelogs_count" ? 3 : 1.5,
-            pointRadius: selectedMetric === "changelogs_count" ? 2 : 0,
-            tension: 0.3,
-            fill: selectedMetric === "changelogs_count",
-            hidden: selectedMetric !== "changelogs_count" && selectedMetric !== "all",
-          },
-          {
-            label: "Automations",
-            data: reducedData.map((item: HistoricWebhookData) => item.automations_count),
-            borderColor: COLORS.accent3,
-            backgroundColor: `${COLORS.accent3}33`,
-            borderWidth: selectedMetric === "automations_count" ? 3 : 1.5,
-            pointRadius: selectedMetric === "automations_count" ? 2 : 0,
-            tension: 0.3,
-            fill: selectedMetric === "automations_count",
-            hidden: selectedMetric !== "automations_count" && selectedMetric !== "all",
-          },
-        ],
-      }
+    const datasets = []
+
+    if (selectedMetric === null) {
+      // Mostrar todas as métricas
+      METRICS.forEach((metric) => {
+        datasets.push({
+          label: metric.label,
+          data: reducedData.map((item: HistoricWebhookData) => item[metric.key as keyof HistoricWebhookData] as number),
+          borderColor: metric.color,
+          backgroundColor: `${metric.color}33`, // 20% opacity
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        })
+      })
     } else {
-      // Modo de barras - mostrar apenas a métrica selecionada
-      let label = "Webhooks"
-      let color = COLORS.primary
-      let chartData = reducedData.map((item: HistoricWebhookData) => item.webhooks_count)
-
-      switch (selectedMetric) {
-        case "events_count":
-          label = "Events"
-          color = COLORS.secondary
-          chartData = reducedData.map((item: HistoricWebhookData) => item.events_count)
-          break
-        case "changes_reports_count":
-          label = "Changes Reports"
-          color = COLORS.accent1
-          chartData = reducedData.map((item: HistoricWebhookData) => item.changes_reports_count)
-          break
-        case "changelogs_count":
-          label = "Changelogs"
-          color = COLORS.accent2
-          chartData = reducedData.map((item: HistoricWebhookData) => item.changelogs_count)
-          break
-        case "automations_count":
-          label = "Automations"
-          color = COLORS.accent3
-          chartData = reducedData.map((item: HistoricWebhookData) => item.automations_count)
-          break
-      }
-
-      return {
-        labels: reducedData.map((item: HistoricWebhookData) => formatDateForDisplay(item.DateTime)),
-        datasets: [
-          {
-            label,
-            data: chartData,
-            backgroundColor: color,
-            borderColor: color,
-            borderWidth: 1,
-          },
-        ],
+      // Mostrar apenas a métrica selecionada
+      const metric = METRICS.find((m) => m.key === selectedMetric)
+      if (metric) {
+        datasets.push({
+          label: metric.label,
+          data: reducedData.map((item: HistoricWebhookData) => item[metric.key as keyof HistoricWebhookData] as number),
+          borderColor: metric.color,
+          backgroundColor: `${metric.color}33`, // 20% opacity
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: true,
+        })
       }
     }
-  }, [data, viewMode, selectedMetric])
+
+    return {
+      labels: reducedData.map((item: HistoricWebhookData) => formatDateForDisplay(item.DateTime)),
+      datasets,
+    }
+  }, [filteredData, selectedMetric])
 
   const chartOptions: ChartOptions<"line"> = {
     responsive: true,
@@ -358,6 +229,7 @@ export default function HistoricWebhookDataComponent() {
         display: false,
       },
       tooltip: {
+        displayColors: false,
         backgroundColor: document.documentElement.classList.contains("dark")
           ? "rgba(17, 24, 39, 0.9)"
           : "rgba(255, 255, 255, 0.9)",
@@ -377,7 +249,17 @@ export default function HistoricWebhookDataComponent() {
         cornerRadius: 4,
         callbacks: {
           label: (context) => {
-            return `${context.dataset.label}: ${formatNumber(context.parsed.y)}`
+            const dataPoint = filteredData[context.dataIndex]
+            if (selectedMetric === null) {
+              // Quando "Todos" está selecionado, mostrar apenas a quantidade da série atual
+              return `${context.dataset.label}: ${formatNumber(context.parsed.y)}`
+            } else {
+              // Quando uma métrica específica está selecionada, mostrar Shard ID e quantidade
+              return [
+                `Shard ID: ${dataPoint?.shard_id || "N/A"}`,
+                `${context.dataset.label}: ${formatNumber(context.parsed.y)}`,
+              ]
+            }
           },
         },
       },
@@ -428,32 +310,6 @@ export default function HistoricWebhookDataComponent() {
     },
   }
 
-  // Componente de card de estatística
-  const StatCard = ({
-    title,
-    value,
-    subValue,
-    icon,
-    color,
-  }: {
-    title: string
-    value: string
-    subValue?: string
-    icon: React.ReactNode
-    color: string
-  }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 transition-colors duration-300">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-        <div className={`p-2 rounded-full ${color}`}>{icon}</div>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-2xl font-bold text-gray-900 dark:text-white">{value}</span>
-        {subValue && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{subValue}</span>}
-      </div>
-    </div>
-  )
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -461,11 +317,38 @@ export default function HistoricWebhookDataComponent() {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Filas</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {formatDateForDisplay(startDate)} até {formatDateForDisplay(endDate)}
-            {shardIdInput && ` • Shard ${shardIdInput}`}
+            {shardIdInput && ` • Shard ID: ${shardIdInput}`}
+            {selectedMetric && ` • Visualizando ${METRICS.find((m) => m.key === selectedMetric)?.label}`}
           </p>
         </div>
-
         <div className="flex flex-wrap gap-2">
+          {/* Toggle de visualização */}
+          {data.length > 0 && (
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-md p-1">
+              <button
+                onClick={() => setViewMode("chart")}
+                className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  viewMode === "chart"
+                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 mr-1" />
+                Gráfico
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  viewMode === "table"
+                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                <Table className="w-4 h-4 mr-1" />
+                Tabela
+              </button>
+            </div>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
@@ -474,55 +357,6 @@ export default function HistoricWebhookDataComponent() {
             Filtros
             {showFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
           </button>
-
-          <div className="flex bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
-            <button
-              onClick={() => setViewMode("line")}
-              className={`flex items-center px-3 py-2 ${
-                viewMode === "line"
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300"
-                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-              } transition-colors`}
-            >
-              <LineChart className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("bar")}
-              className={`flex items-center px-3 py-2 ${
-                viewMode === "bar"
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300"
-                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-              } transition-colors`}
-            >
-              <BarChart3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`flex items-center px-3 py-2 ${
-                viewMode === "table"
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300"
-                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-              } transition-colors`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="3" y1="9" x2="21" y2="9"></line>
-                <line x1="3" y1="15" x2="21" y2="15"></line>
-                <line x1="9" y1="3" x2="9" y2="21"></line>
-                <line x1="15" y1="3" x2="15" y2="21"></line>
-              </svg>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -533,7 +367,7 @@ export default function HistoricWebhookDataComponent() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 overflow-hidden transition-colors duration-300"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 overflow-hidden"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
@@ -554,7 +388,6 @@ export default function HistoricWebhookDataComponent() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <Calendar className="w-4 h-4 inline mr-1" />
@@ -573,7 +406,6 @@ export default function HistoricWebhookDataComponent() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
                 />
               </div>
-
               <div className="flex items-end">
                 <button
                   onClick={clearFilters}
@@ -640,8 +472,8 @@ export default function HistoricWebhookDataComponent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shard ID</label>
                 <input
                   type="number"
@@ -652,26 +484,26 @@ export default function HistoricWebhookDataComponent() {
                     setError(null)
                   }}
                   placeholder="Ex: 1"
+                  min="1"
+                  max="12"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
                 />
               </div>
-              <div className="flex items-end">
-                <button
-                  onClick={() => {
-                    if (!shardIdInput) {
-                      setError("Por favor, preencha o Shard ID para pesquisar.")
-                      setData([])
-                      return
-                    }
-                    setError(null)
-                    setTriggerSearch(true)
-                  }}
-                  disabled={loading || !shardIdInput}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "..." : "Pesquisar"}
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  if (!shardIdInput) {
+                    setError("Por favor, preencha o Shard ID para pesquisar.")
+                    setData([])
+                    return
+                  }
+                  setError(null)
+                  setTriggerSearch(true)
+                }}
+                disabled={loading || !shardIdInput}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "..." : "Pesquisar"}
+              </button>
             </div>
           </motion.div>
         )}
@@ -698,260 +530,114 @@ export default function HistoricWebhookDataComponent() {
         </div>
       ) : (
         <>
-          {/* Estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatCard
-              title="Webhooks"
-              value={formatNumber(stats.webhooks.avg)}
-              subValue={`Máx: ${formatNumber(stats.webhooks.max)}`}
-              icon={
-                <svg
-                  className="w-5 h-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-              }
-              color="bg-indigo-600 dark:bg-indigo-500 text-white"
-            />
-            <StatCard
-              title="Events"
-              value={formatNumber(stats.events.avg)}
-              subValue={`Máx: ${formatNumber(stats.events.max)}`}
-              icon={
-                <svg
-                  className="w-5 h-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-              }
-              color="bg-sky-500 dark:bg-sky-600 text-white"
-            />
-            <StatCard
-              title="Changes Reports"
-              value={formatNumber(stats.changes.avg)}
-              subValue={`Máx: ${formatNumber(stats.changes.max)}`}
-              icon={
-                <svg
-                  className="w-5 h-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-              }
-              color="bg-orange-500 dark:bg-orange-600 text-white"
-            />
-            <StatCard
-              title="Changelogs"
-              value={formatNumber(stats.changelogs.avg)}
-              subValue={`Máx: ${formatNumber(stats.changelogs.max)}`}
-              icon={
-                <svg
-                  className="w-5 h-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 20h9"></path>
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                </svg>
-              }
-              color="bg-emerald-500 dark:bg-emerald-600 text-white"
-            />
-            <StatCard
-              title="Automations"
-              value={formatNumber(stats.automations.avg)}
-              subValue={`Máx: ${formatNumber(stats.automations.max)}`}
-              icon={
-                <svg
-                  className="w-5 h-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 20V10"></path>
-                  <path d="M12 20V4"></path>
-                  <path d="M6 20v-6"></path>
-                </svg>
-              }
-              color="bg-violet-500 dark:bg-violet-600 text-white"
-            />
-          </div>
-
-          {/* Seletor de métricas */}
-          {viewMode !== "table" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-              <div className="mb-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Selecionar Métrica
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setSelectedMetric("all")}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === "all"
-                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Todas as Métricas
-                  </button>
-                  <button
-                    onClick={() => setSelectedMetric("webhooks_count")}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === "webhooks_count"
-                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Webhooks
-                  </button>
-                  <button
-                    onClick={() => setSelectedMetric("events_count")}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === "events_count"
-                        ? "bg-sky-500 dark:bg-sky-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Events
-                  </button>
-                  <button
-                    onClick={() => setSelectedMetric("changes_reports_count")}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === "changes_reports_count"
-                        ? "bg-orange-500 dark:bg-orange-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Changes Reports
-                  </button>
-                  <button
-                    onClick={() => setSelectedMetric("changelogs_count")}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === "changelogs_count"
-                        ? "bg-emerald-500 dark:bg-emerald-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Changelogs
-                  </button>
-                  <button
-                    onClick={() => setSelectedMetric("automations_count")}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === "automations_count"
-                        ? "bg-violet-500 dark:bg-violet-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    Automations
-                  </button>
+          {/* Visualização do Gráfico */}
+          {viewMode === "chart" && (
+            <>
+              {/* Gráfico */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
+                <div className="h-[400px]">
+                  <Line data={chartData} options={chartOptions} />
                 </div>
               </div>
 
-              <div className="h-[400px]">
-                <Line data={chartData} options={chartOptions} />
+              {/* Seleção de Métricas */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Métrica</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Clique em uma métrica para visualizar apenas seus dados, ou em "Todas" para ver todas as métricas.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {/* Botão "Todas" */}
+                  <motion.button
+                    onClick={() => setSelectedMetric(null)}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      selectedMetric === null
+                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Todas as Métricas
+                  </motion.button>
+
+                  {/* Botões para cada métrica */}
+                  {METRICS.map((metric) => (
+                    <motion.button
+                      key={metric.key}
+                      onClick={() => setSelectedMetric(metric.key)}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        selectedMetric === metric.key
+                          ? "text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                      style={{
+                        backgroundColor: selectedMetric === metric.key ? metric.color : undefined,
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {metric.label}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          {/* Tabela de dados */}
+          {/* Visualização da Tabela */}
           {viewMode === "table" && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors duration-300">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Dados Detalhados</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {data.length} registros encontrados • Shard ID: {shardIdInput}
+                </p>
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Data/Hora
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Shard ID
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Webhooks
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Events
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Changes Reports
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Changelogs
                       </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Automations
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                      >
-                        Data/Hora
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {data
-                      .sort(
-                        (a: HistoricWebhookData, b: HistoricWebhookData) =>
-                          new Date(b.DateTime).getTime() - new Date(a.DateTime).getTime(),
-                      )
-                      .slice(0, 100) // Limitar a 100 registros para performance
-                      .map((item: HistoricWebhookData, index: number) => (
-                        <tr
-                          key={`${item.shard_id}-${item.DateTime}`}
+                      .sort((a, b) => new Date(b.DateTime).getTime() - new Date(a.DateTime).getTime()) // Ordenar por data mais recente primeiro
+                      .map((item, index) => (
+                        <motion.tr
+                          key={`${item.DateTime}-${index}`}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: index * 0.02 }}
                           className={index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700/50"}
                         >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {formatDateForDisplay(item.DateTime)}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                             {item.shard_id}
                           </td>
@@ -970,28 +656,11 @@ export default function HistoricWebhookDataComponent() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             {formatNumber(item.automations_count)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {new Date(new Date(item.DateTime).getTime() - 3 * 60 * 60 * 1000)
-                              .toLocaleString("pt-BR", {
-                                year: "2-digit",
-                                month: "2-digit",
-                                day: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false,
-                              })
-                              .replace(",", " -")}
-                          </td>
-                        </tr>
+                        </motion.tr>
                       ))}
                   </tbody>
                 </table>
               </div>
-              {data.length > 100 && (
-                <div className="bg-gray-50 dark:bg-gray-700 px-6 py-3 text-sm text-gray-500 dark:text-gray-300">
-                  Mostrando 100 de {data.length} registros
-                </div>
-              )}
             </div>
           )}
         </>

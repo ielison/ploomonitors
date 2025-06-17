@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, LogOut, BarChart3, Link, Zap } from "lucide-react"
+import { RefreshCw, LogOut, BarChart3, Link, Zap, Activity } from "lucide-react"
 import { motion } from "framer-motion"
 import { Login } from "./components/Login"
 import { setAuthToken, removeAuthToken } from "./utils/auth"
+import CurrentQueueStatus from "./components/CurrentQueueStatus"
 import HistoricWebhookData from "./components/HistoricWebhookData"
 import HistoricWebhookDetails from "./components/HistoricWebhookDetails"
 import HistoricAutomations from "./components/HistoricAutomations"
@@ -14,7 +15,9 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [activeTab, setActiveTab] = useState<"webhooks" | "historicWebhooks" | "historicAutomations">("webhooks")
+  const [activeTab, setActiveTab] = useState<"current" | "webhooks" | "historicWebhooks" | "historicAutomations">(
+    "current",
+  )
 
   useEffect(() => {
     setIsAuthenticated(!!localStorage.getItem("userKey"))
@@ -73,7 +76,7 @@ export default function App() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Sistema de Monitoramento</h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">Monitoramento histórico de filas e automações</p>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">Monitoramento de filas e automações em tempo real</p>
           </div>
           <div className="flex items-center space-x-3">
             <ThemeToggle />
@@ -133,6 +136,17 @@ export default function App() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-1 transition-colors duration-300">
             <nav className="flex space-x-1">
               <button
+                onClick={() => setActiveTab("current")}
+                className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
+                  activeTab === "current"
+                    ? "bg-indigo-600 dark:bg-indigo-700 text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Estado Atual
+              </button>
+              <button
                 onClick={() => setActiveTab("webhooks")}
                 className={`flex items-center px-4 py-3 rounded-md font-medium text-sm transition-colors ${
                   activeTab === "webhooks"
@@ -176,6 +190,7 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
+          {activeTab === "current" && <CurrentQueueStatus />}
           {activeTab === "webhooks" && <HistoricWebhookData />}
           {activeTab === "historicWebhooks" && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
