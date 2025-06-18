@@ -64,7 +64,7 @@ export function Login({ onLogin }: LoginProps) {
               <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
             </svg>
           </motion.div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Monitor por Shard</h2>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Monitores N2</h2>
           <p className="mt-2 text-gray-600 dark:text-gray-300">Faça login para acessar o sistema</p>
         </div>
 

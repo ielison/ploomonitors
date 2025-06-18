@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
 import { Calendar, List } from "lucide-react"
 import { fetchHistoricWebhooksDetails } from "../utils/api"
@@ -83,7 +83,8 @@ export default function HistoricWebhookDetails() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(false)
-  const [selectedWebhookId, setSelectedWebhookId] = useState<number | null>(null) // Alterado para WebhookId
+  const [selectedWebhookId, setSelectedWebhookId] = useState<number | null>(null)
+  const chartRef = useRef<ChartJS<"line"> | null>(null)
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate())
   const [endDate, setEndDate] = useState<string>(getDefaultEndDate())
@@ -99,6 +100,15 @@ export default function HistoricWebhookDetails() {
   }
 
   const getMaxDate = () => getBrasiliaDate(0)
+
+  // Destruir gráfico anterior quando dados mudarem
+  useEffect(() => {
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy()
+      }
+    }
+  }, [selectedWebhookId, data])
 
   // Envolver fetchData em useCallback
   const fetchData = useCallback(async () => {
@@ -215,9 +225,11 @@ export default function HistoricWebhookDetails() {
     }
   }, [filteredData, selectedWebhookId])
 
+  // Configuração do gráfico com configuração mais específica para evitar repetição
   const chartOptions: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // Desabilitar animações para evitar conflitos
     plugins: {
       legend: {
         position: "top" as const,
@@ -234,7 +246,7 @@ export default function HistoricWebhookDetails() {
         display: false,
       },
       tooltip: {
-        displayColors: false, // Remove o quadrado colorido
+        displayColors: false,
         backgroundColor: document.documentElement.classList.contains("dark")
           ? "rgba(17, 24, 39, 0.9)"
           : "rgba(255, 255, 255, 0.9)",
@@ -256,10 +268,8 @@ export default function HistoricWebhookDetails() {
           label: (context) => {
             const dataPoint = filteredData[context.dataIndex]
             if (selectedWebhookId === null) {
-              // Quando "Todos" está selecionado, mostrar apenas Quantity
               return `Quantity: ${formatNumber(context.parsed.y)}`
             } else {
-              // Quando um WebhookId específico está selecionado, mostrar Account ID e Quantity
               return [`Account ID: ${dataPoint?.AccountId || "N/A"}`, `Quantity: ${formatNumber(context.parsed.y)}`]
             }
           },
@@ -281,19 +291,24 @@ export default function HistoricWebhookDetails() {
         },
       },
       y: {
+        type: "linear",
         beginAtZero: true,
+        grace: "5%",
         grid: {
           color: document.documentElement.classList.contains("dark")
             ? "rgba(75, 85, 99, 0.3)"
             : "rgba(226, 232, 240, 0.6)",
         },
         ticks: {
+          stepSize: 1,
+          precision: 0,
+          maxTicksLimit: 8,
           font: {
             family: "'Inter', sans-serif",
             size: 11,
           },
           color: document.documentElement.classList.contains("dark") ? "#9ca3af" : "#6b7280",
-          callback: (value) => formatNumber(value as number),
+          callback: (value) => formatNumber(Number(value)),
         },
       },
     },
@@ -529,7 +544,7 @@ export default function HistoricWebhookDetails() {
           {/* Gráfico */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
             <div className="h-[400px]">
-              <Line data={chartData} options={chartOptions} />
+              <Line ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
             </div>
           </div>
 
