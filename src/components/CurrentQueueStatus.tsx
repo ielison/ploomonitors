@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
 import { RefreshCw, BarChart3, Table, AlertTriangle } from "lucide-react"
 import { Bar } from "react-chartjs-2"
@@ -59,17 +59,24 @@ const formatNumber = (value: number): string => {
 const formatDateTime = (dateString: string): string => {
   if (!dateString) return ""
 
-  const date = new Date(dateString)
+  let date: Date
 
-  // Converter para o horário brasileiro (GMT-3)
-  // Subtraímos 3 horas do UTC para obter o horário brasileiro
-  const brasiliaTime = new Date(date.getTime() - 3 * 60 * 60 * 1000)
+  if (dateString.endsWith("Z")) {
+    // Data em UTC, precisa converter para horário brasileiro (GMT-3)
+    date = new Date(dateString)
+    // Adicionar 3 horas para converter de UTC para horário brasileiro
+    date = new Date(date.getTime() + 3 * 60 * 60 * 1000)
+  } else {
+    // Assumir que já está no horário brasileiro, criar data sem conversão de fuso
+    const cleanDateString = dateString.replace(/[+-]\d{2}:\d{2}$/, "").replace("Z", "")
+    date = new Date(cleanDateString + (cleanDateString.includes("T") ? "" : "T00:00:00"))
+  }
 
-  const day = brasiliaTime.getUTCDate().toString().padStart(2, "0")
-  const month = (brasiliaTime.getUTCMonth() + 1).toString().padStart(2, "0")
-  const year = brasiliaTime.getUTCFullYear().toString().slice(-2)
-  const hours = brasiliaTime.getUTCHours().toString().padStart(2, "0")
-  const minutes = brasiliaTime.getUTCMinutes().toString().padStart(2, "0")
+  const day = date.getDate().toString().padStart(2, "0")
+  const month = (date.getMonth() + 1).toString().padStart(2, "0")
+  const year = date.getFullYear().toString().slice(-2)
+  const hours = date.getHours().toString().padStart(2, "0")
+  const minutes = date.getMinutes().toString().padStart(2, "0")
 
   return `${day}/${month}/${year} - ${hours}:${minutes}`
 }
@@ -109,6 +116,16 @@ export default function CurrentQueueStatus() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"chart" | "table">("chart")
+  const chartRef = useRef<ChartJS<"bar"> | null>(null)
+
+  // Destruir gráfico anterior quando dados mudarem
+  useEffect(() => {
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy()
+      }
+    }
+  }, [data])
 
   // Função para normalizar os dados da API
   const normalizeApiData = (apiResponse: ApiResponseType): WebhookItem[] => {
@@ -209,6 +226,7 @@ export default function CurrentQueueStatus() {
   const chartOptions: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // Desabilitar animações para evitar conflitos
     plugins: {
       legend: {
         display: false,
@@ -235,13 +253,18 @@ export default function CurrentQueueStatus() {
         },
       },
       y: {
+        type: "linear",
         beginAtZero: true,
+        grace: "5%",
         ticks: {
+          stepSize: 1,
+          precision: 0,
+          maxTicksLimit: 8,
           font: {
             size: 10,
           },
           color: document.documentElement.classList.contains("dark") ? "#9ca3af" : "#6b7280",
-          callback: (value) => formatNumber(value as number),
+          callback: (value) => formatNumber(Number(value)),
         },
         grid: {
           color: document.documentElement.classList.contains("dark")
@@ -261,6 +284,7 @@ export default function CurrentQueueStatus() {
             {lastUpdated ? (
               <>
                 Última atualização: {formatDateTime(lastUpdated)}
+                <span className="text-xs ml-2 text-gray-400 dark:text-gray-500">(Dados em tempo real)</span>
               </>
             ) : (
               "Carregando dados..."
@@ -339,7 +363,7 @@ export default function CurrentQueueStatus() {
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Webhooks por Shard</h3>
               </div>
               <div className="h-[300px]">
-                <Bar data={chartData} options={chartOptions} />
+                <Bar ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
               </div>
             </div>
           )}

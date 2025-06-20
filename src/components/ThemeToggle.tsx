@@ -11,13 +11,14 @@ export function ThemeToggle() {
     <motion.button
       onClick={toggleTheme}
       className="relative p-2 rounded-full bg-gray-200 dark:bg-gray-700 transition-colors duration-300"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      aria-label={theme === "light" ? "Ativar modo escuro" : "Ativar modo claro"}
+      whileHover={{ scale: 1.05 }} // Efeito de escala ao passar o mouse
+      whileTap={{ scale: 0.95 }} // Efeito de escala ao clicar
+      aria-label={theme === "light" ? "Ativar modo escuro" : "Ativar modo claro"} // Rótulo para acessibilidade
     >
       <div className="w-6 h-6 relative">
         {/* Ícone do Sol */}
         <motion.div
+          // Animação de opacidade e rotação para o ícone do sol
           initial={{ opacity: theme === "light" ? 1 : 0, rotate: theme === "light" ? 0 : 45 }}
           animate={{ opacity: theme === "light" ? 1 : 0, rotate: theme === "light" ? 0 : 45 }}
           transition={{ duration: 0.2 }}
@@ -28,6 +29,7 @@ export function ThemeToggle() {
 
         {/* Ícone da Lua */}
         <motion.div
+          // Animação de opacidade e rotação para o ícone da lua
           initial={{ opacity: theme === "dark" ? 1 : 0, rotate: theme === "dark" ? 0 : -45 }}
           animate={{ opacity: theme === "dark" ? 1 : 0, rotate: theme === "dark" ? 0 : -45 }}
           transition={{ duration: 0.2 }}

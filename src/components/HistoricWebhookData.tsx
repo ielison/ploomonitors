@@ -70,14 +70,28 @@ const getDefaultEndDate = () => getBrasiliaDate(0) // hora atual
 
 const formatDateForDisplay = (dateString: string) => {
   if (!dateString) return ""
-  const date = new Date(dateString)
-  // Converter para horário brasileiro (GMT-3)
-  const brasiliaTime = new Date(date.getTime() - 3 * 60 * 60 * 1000)
-  const day = brasiliaTime.getUTCDate().toString().padStart(2, "0")
-  const month = (brasiliaTime.getUTCMonth() + 1).toString().padStart(2, "0")
-  const hours = brasiliaTime.getUTCHours().toString().padStart(2, "0")
-  const minutes = brasiliaTime.getUTCMinutes().toString().padStart(2, "0")
-  const seconds = brasiliaTime.getUTCSeconds().toString().padStart(2, "0")
+
+  // Se a string já termina com 'Z', assumir que é UTC e converter para horário brasileiro
+  // Se não termina com 'Z', assumir que já está no horário brasileiro
+  let date: Date
+
+  if (dateString.endsWith("Z")) {
+    // Data em UTC, precisa converter para horário brasileiro (GMT-3)
+    date = new Date(dateString)
+    // Adicionar 3 horas para converter de UTC para horário brasileiro
+    date = new Date(date.getTime() + 3 * 60 * 60 * 1000)
+  } else {
+    // Assumir que já está no horário brasileiro, criar data sem conversão de fuso
+    // Remover qualquer informação de fuso horário e tratar como horário local
+    const cleanDateString = dateString.replace(/[+-]\d{2}:\d{2}$/, "").replace("Z", "")
+    date = new Date(cleanDateString + (cleanDateString.includes("T") ? "" : "T00:00:00"))
+  }
+
+  const day = date.getDate().toString().padStart(2, "0")
+  const month = (date.getMonth() + 1).toString().padStart(2, "0")
+  const hours = date.getHours().toString().padStart(2, "0")
+  const minutes = date.getMinutes().toString().padStart(2, "0")
+  const seconds = date.getSeconds().toString().padStart(2, "0")
   return `${day}/${month}, ${hours}:${minutes}:${seconds}`
 }
 
@@ -139,6 +153,10 @@ export default function HistoricWebhookData() {
       console.log("Payload sendo enviado:", payload) // Debug para verificar as datas
 
       const result = await fetchHistoricCentral(payload)
+
+      // Debug: verificar como as datas estão chegando da API
+      console.log("Dados recebidos da API:", result.slice(0, 3))
+
       setData(result)
       setSelectedMetric(null) // Reset metric selection when new data is loaded
     } catch (err) {
