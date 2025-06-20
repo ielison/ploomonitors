@@ -16,30 +16,26 @@ export function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Lida com o envio do formulário de login
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault() // Previne o comportamento padrão de recarregar a página
-    setError(null) // Limpa qualquer erro anterior
-    setIsLoading(true) // Ativa o estado de carregamento
+    e.preventDefault()
+    setError(null)
+    setIsLoading(true)
 
     try {
-      await onLogin(email, password) // Tenta fazer login com as credenciais fornecidas
+      await onLogin(email, password)
     } catch (err) {
-      console.error("Login error:", err) // Loga o erro no console
-      setError("Falha no login. Verifique suas credenciais.") // Define uma mensagem de erro para o usuário
+      setError("Falha no login. Verifique suas credenciais.")
     } finally {
-      setIsLoading(false) // Desativa o estado de carregamento, independentemente do resultado
+      setIsLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
-      {/* Botão de alternância de tema posicionado no canto superior direito */}
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
 
-      {/* Contêiner principal do formulário de login com animação de entrada */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -47,14 +43,12 @@ export function Login({ onLogin }: LoginProps) {
         className="max-w-md w-full space-y-8"
       >
         <div className="text-center">
-          {/* Ícone do aplicativo com animação */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="mx-auto h-16 w-16 bg-indigo-600 dark:bg-indigo-500 rounded-full flex items-center justify-center mb-6"
           >
-            {/* SVG do ícone (gráfico de linha) */}
             <svg
               className="w-8 h-8 text-white"
               xmlns="http://www.w3.org/2000/svg"
@@ -73,7 +67,6 @@ export function Login({ onLogin }: LoginProps) {
           <p className="mt-2 text-gray-600 dark:text-gray-300">Faça login para acessar o sistema</p>
         </div>
 
-        {/* Cartão do formulário de login com animação */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -81,7 +74,6 @@ export function Login({ onLogin }: LoginProps) {
           className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 transition-colors duration-300"
         >
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Campo de E-mail */}
             <div>
               <label
                 htmlFor="email-address"
@@ -107,7 +99,6 @@ export function Login({ onLogin }: LoginProps) {
               </div>
             </div>
 
-            {/* Campo de Senha */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Senha
@@ -130,7 +121,6 @@ export function Login({ onLogin }: LoginProps) {
               </div>
             </div>
 
-            {/* Exibição de erro (se houver) com animação */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -148,17 +138,15 @@ export function Login({ onLogin }: LoginProps) {
               </motion.div>
             )}
 
-            {/* Botão de Entrar com estado de carregamento e animações */}
             <motion.button
               type="submit"
-              disabled={isLoading} // Desabilita o botão durante o carregamento
+              disabled={isLoading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              whileHover={{ scale: isLoading ? 1 : 1.02 }} // Animação de hover (desativada se estiver carregando)
-              whileTap={{ scale: isLoading ? 1 : 0.98 }} // Animação de clique (desativada se estiver carregando)
+              whileHover={{ scale: isLoading ? 1 : 1.02 }}
+              whileTap={{ scale: isLoading ? 1 : 0.98 }}
             >
               {isLoading ? (
                 <div className="flex items-center">
-                  {/* Ícone de spinner durante o carregamento */}
                   <svg
                     className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
                     xmlns="http://www.w3.org/2000/svg"
@@ -191,7 +179,6 @@ export function Login({ onLogin }: LoginProps) {
           </form>
         </motion.div>
 
-        {/* Rodapé com informações da empresa */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

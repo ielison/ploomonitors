@@ -129,8 +129,6 @@ export default function CurrentQueueStatus() {
 
   // Função para normalizar os dados da API
   const normalizeApiData = (apiResponse: ApiResponseType): WebhookItem[] => {
-    console.log("API Response:", apiResponse) // Debug log
-
     // Se a resposta é um array, verificar se todos os itens são válidos
     if (Array.isArray(apiResponse)) {
       const validItems = apiResponse.filter(isWebhookItem)
@@ -147,7 +145,6 @@ export default function CurrentQueueStatus() {
       if (Array.isArray(response.response)) {
         const validItems = response.response.filter(isWebhookItem)
         if (validItems.length > 0) {
-          console.log("Found data in 'response' key:", validItems) // Debug log
           return validItems
         }
       }
@@ -160,7 +157,6 @@ export default function CurrentQueueStatus() {
         if (Array.isArray(value)) {
           const validItems = value.filter(isWebhookItem)
           if (validItems.length > 0) {
-            console.log(`Found data in '${key}' key:`, validItems) // Debug log
             return validItems
           }
         }
@@ -173,7 +169,6 @@ export default function CurrentQueueStatus() {
     }
 
     // Se chegou até aqui, retornar array vazio
-    console.warn("Não foi possível normalizar os dados da API:", apiResponse)
     return []
   }
 
@@ -184,20 +179,16 @@ export default function CurrentQueueStatus() {
 
     try {
       const result = await fetchWebhookData()
-      console.log("Raw API result:", result) // Debug log adicional
 
       const normalizedData = normalizeApiData(result)
-      console.log("Normalized Data:", normalizedData) // Debug log
 
       setData(normalizedData)
       setLastUpdated(new Date().toISOString())
 
       if (normalizedData.length === 0) {
         setError("Nenhum dado foi retornado pela API. Estrutura de resposta inesperada.")
-        console.error("API response structure:", result) // Log da estrutura para debug
       }
     } catch (err) {
-      console.error("Falha ao buscar dados atuais:", err)
       setError("Falha ao carregar dados. Verifique a conexão e tente novamente.")
       setData([]) // Garantir que data seja um array vazio em caso de erro
     } finally {

@@ -145,13 +145,10 @@ export default function HistoricAutomations() {
         payload.AccountId = Number.parseInt(accountIdInput)
       }
 
-      console.log("Payload sendo enviado:", payload) // Debug para verificar as datas
-
       const result = await fetchHistoricAutomations(payload)
       setData(result)
       setSelectedAutomationId(null) // Reset automation selection when new data is loaded
     } catch (err) {
-      console.error("Failed to fetch historic automations:", err)
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
     } finally {

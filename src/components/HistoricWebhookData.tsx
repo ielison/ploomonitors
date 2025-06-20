@@ -150,17 +150,11 @@ export default function HistoricWebhookData() {
         to: convertToISOWithoutTimezone(endDate),
       }
 
-      console.log("Payload sendo enviado:", payload) // Debug para verificar as datas
-
       const result = await fetchHistoricCentral(payload)
-
-      // Debug: verificar como as datas estão chegando da API
-      console.log("Dados recebidos da API:", result.slice(0, 3))
 
       setData(result)
       setSelectedMetric(null) // Reset metric selection when new data is loaded
     } catch (err) {
-      console.error("Failed to fetch historic central data:", err)
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
     } finally {

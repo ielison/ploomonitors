@@ -145,13 +145,10 @@ export default function HistoricWebhookDetails() {
         payload.AccountId = Number.parseInt(accountIdInput)
       }
 
-      console.log("Payload sendo enviado:", payload) // Debug para verificar as datas
-
       const result = await fetchHistoricWebhooksDetails(payload)
       setData(result)
       setSelectedWebhookId(null) // Reset webhook selection when new data is loaded
     } catch (err) {
-      console.error("Failed to fetch historic webhook details:", err)
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
     } finally {

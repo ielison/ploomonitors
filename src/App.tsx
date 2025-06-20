@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, LogOut, BarChart3, Link, Zap, Activity } from "lucide-react"
+import { LogOut, BarChart3, Link, Zap, Activity } from "lucide-react" // RefreshCw removido
 import { motion } from "framer-motion"
 import { Login } from "./components/Login"
 import { setAuthToken, removeAuthToken } from "./utils/auth"
@@ -12,7 +12,6 @@ import HistoricAutomations from "./components/HistoricAutomations"
 import { ThemeToggle } from "./components/ThemeToggle"
 
 export default function App() {
-  const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeTab, setActiveTab] = useState<"current" | "webhooks" | "historicWebhooks" | "historicAutomations">(
@@ -23,19 +22,7 @@ export default function App() {
     setIsAuthenticated(!!localStorage.getItem("userKey"))
   }, [])
 
-  const updateData = async () => {
-    try {
-      setLoading(true)
-      // Por enquanto não fazemos nada aqui, pois estamos usando dados mock
-      // Quando o backend estiver pronto, aqui será feita a chamada para buscar dados históricos
-      setError(null)
-    } catch (err: unknown) {
-      setError("Failed to fetch data")
-      console.error("Error fetching data:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // A função updateData e o estado loading foram removidos, pois o botão "Atualizar" foi removido.
 
   const handleLogin = async (Email: string, Password: string) => {
     try {
@@ -55,7 +42,6 @@ export default function App() {
       setAuthToken(data.UserKey)
       setIsAuthenticated(true)
     } catch (error) {
-      console.error("Login error:", error)
       throw error
     }
   }
@@ -80,16 +66,7 @@ export default function App() {
           </div>
           <div className="flex items-center space-x-3">
             <ThemeToggle />
-            <motion.button
-              onClick={updateData}
-              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-5 h-5 mr-2 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Atualizando..." : "Atualizar"}
-            </motion.button>
+            {/* Botão "Atualizar" removido */}
             <motion.button
               onClick={handleLogout}
               className="flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
