@@ -101,6 +101,7 @@ export default function HistoricWebhookDetails() {
   const [shardIdInput, setShardIdInput] = useState<string>("")
   const [accountIdInput, setAccountIdInput] = useState<string>("")
   const [selectedSearchType, setSelectedSearchType] = useState<"shard" | "account">("shard")
+  const [searchTerm, setSearchTerm] = useState<string>("")
 
   const getMinDate = () => {
     const now = new Date()
@@ -196,6 +197,39 @@ export default function HistoricWebhookDetails() {
       .sort((a, b) => b[1] - a[1]) // Ordenar por total decrescente
       .map(([webhookId, total]) => ({ webhookId, total }))
   }, [data])
+
+  // Preparar dados da tabela agrupados por Webhook ID e Account ID
+  const webhookTableData = useMemo(() => {
+    const grouped = new Map<string, { webhookId: number; accountId: number; total: number }>()
+
+    data.forEach((item) => {
+      const key = `${item.WebhookId}-${item.AccountId}`
+      const existing = grouped.get(key)
+      if (existing) {
+        existing.total += item.Quantity
+      } else {
+        grouped.set(key, {
+          webhookId: item.WebhookId,
+          accountId: item.AccountId,
+          total: item.Quantity,
+        })
+      }
+    })
+
+    return Array.from(grouped.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 50) // Limitar aos top 50 resultados
+  }, [data])
+
+  // Filtrar dados da tabela baseado na busca
+  const filteredWebhookData = useMemo(() => {
+    if (!searchTerm) return webhookTableData
+
+    const search = searchTerm.toLowerCase()
+    return webhookTableData.filter(
+      (item) => item.webhookId.toString().includes(search) || item.accountId.toString().includes(search),
+    )
+  }, [webhookTableData, searchTerm])
 
   // Filtrar dados baseado no Webhook ID selecionado
   const filteredData = useMemo(() => {
@@ -555,49 +589,101 @@ export default function HistoricWebhookDetails() {
             </div>
           </div>
 
-          {/* Seleção de Webhook IDs */}
-          {webhookIdsSorted.length > 1 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Webhook ID</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Clique em um Webhook ID para visualizar apenas seus dados. Ordenados por quantidade total (maior
-                  primeiro).
+          {/* Tabela de Webhook IDs com busca */}
+          {webhookIdsSorted.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Webhooks por Conta</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  Clique em uma linha para filtrar o gráfico. Use a busca para encontrar IDs específicos. (Max. resultados: 50)
                 </p>
+
+                {/* Campo de busca */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar por Webhook ID ou Account ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {/* Botão "Todos" */}
-                <motion.button
-                  onClick={() => setSelectedWebhookId(null)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedWebhookId === null
-                      ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Todos ({data.length} registros)
-                </motion.button>
+              <div className="overflow-x-auto max-h-96">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Webhook ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Account ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredWebhookData.map((item, index) => (
+                      <motion.tr
+                        key={`${item.webhookId}-${item.accountId}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.01 }}
+                        onClick={() => setSelectedWebhookId(item.webhookId)}
+                        className={`cursor-pointer transition-colors ${
+                          selectedWebhookId === item.webhookId
+                            ? "bg-indigo-50 dark:bg-indigo-900/30 border-l-4 border-indigo-500"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        }`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {item.webhookId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          {item.accountId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                          {formatNumber(item.total)}
+                        </td>
+                      </motion.tr>
+                    ))}
+                    {filteredWebhookData.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                          Nenhum resultado encontrado para "{searchTerm}"
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                {/* Botões para cada Webhook ID */}
-                {webhookIdsSorted.map(({ webhookId, total }) => (
-                  <motion.button
-                    key={webhookId}
-                    onClick={() => setSelectedWebhookId(webhookId)}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      selectedWebhookId === webhookId
-                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    {webhookId}
-                    <span className="ml-1 text-xs opacity-75">({formatNumber(total)})</span>
-                  </motion.button>
-                ))}
+              <div className="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                Mostrando {filteredWebhookData.length} de {Math.min(webhookTableData.length, 50)} registros
+                {selectedWebhookId && (
+                  <span className="ml-4">
+                    • Filtro ativo: Webhook {selectedWebhookId}
+                    <button
+                      onClick={() => setSelectedWebhookId(null)}
+                      className="ml-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
+                    >
+                      (limpar)
+                    </button>
+                  </span>
+                )}
               </div>
             </div>
           )}
