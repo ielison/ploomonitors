@@ -567,8 +567,11 @@ export default function HistoricAutomations() {
 
       {loading ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-          <p className="text-lg font-medium text-gray-900 dark:text-white">Carregando dados...</p>
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="w-12 h-12 border-4 border-solid rounded-full animate-spin mb-4 border-gray-300 dark:border-gray-600 border-t-indigo-500 dark:border-t-indigo-400"></div>
+            <p className="text-lg font-medium text-gray-900 dark:text-white">Carregando dados...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Aguarde enquanto buscamos as informações.</p>
+          </div>
         </div>
       ) : data.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
@@ -594,7 +597,8 @@ export default function HistoricAutomations() {
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Automações por Conta</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Clique em uma linha para filtrar o gráfico. Use a busca para encontrar IDs específicos. (Max. resultados: 50)
+                  Clique em uma linha para filtrar o gráfico. Use a busca para encontrar IDs específicos. Mostrando os
+                  top 50 resultados por volume.
                 </p>
 
                 {/* Campo de busca */}
@@ -671,7 +675,8 @@ export default function HistoricAutomations() {
               </div>
 
               <div className="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-sm text-gray-500 dark:text-gray-400">
-                Mostrando {filteredAutomationData.length} de {Math.min(automationTableData.length, 50)} registros.
+                Mostrando {filteredAutomationData.length} de {Math.min(automationTableData.length, 50)} registros (top
+                50 por volume)
                 {selectedAutomationId && (
                   <span className="ml-4">
                     • Filtro ativo: Automation {selectedAutomationId}
