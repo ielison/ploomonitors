@@ -123,9 +123,10 @@ export default function HistoricWebhookData() {
 
   // Destruir gráfico anterior quando dados mudarem
   useEffect(() => {
+    const chart = chartRef.current // Capture the current ref value
     return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy()
+      if (chart) {
+        chart.destroy()
       }
     }
   }, [selectedMetric, data])
@@ -154,6 +155,7 @@ export default function HistoricWebhookData() {
 
       setData(result)
       setSelectedMetric(null) // Reset metric selection when new data is loaded
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
@@ -285,10 +287,10 @@ export default function HistoricWebhookData() {
           label: (context) => {
             const dataPoint = filteredData[context.dataIndex]
             if (selectedMetric === null) {
-              // Quando "Todos" está selecionado, mostrar apenas a quantidade da série atual
+              // When "Todos" is selected, show only the quantity of the current series
               return `${context.dataset.label}: ${formatNumber(context.parsed.y)}`
             } else {
-              // Quando uma métrica específica está selecionada, mostrar Shard ID e quantidade
+              // When a specific metric is selected, show Shard ID and quantity
               return [
                 `Shard ID: ${dataPoint?.shard_id || "N/A"}`,
                 `${context.dataset.label}: ${formatNumber(context.parsed.y)}`,
@@ -555,139 +557,58 @@ export default function HistoricWebhookData() {
         </div>
       ) : (
         <>
-          {/* Visualização do Gráfico */}
-          {viewMode === "chart" && (
-            <>
-              {/* Gráfico */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-                <div className="h-[400px]">
-                  <Line ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
-                </div>
-              </div>
-
-              {/* Seleção de Métricas */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Métrica</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Clique em uma métrica para visualizar apenas seus dados, ou em "Todas" para ver todas as métricas.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {/* Botão "Todas" */}
-                  <motion.button
-                    onClick={() => setSelectedMetric(null)}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      selectedMetric === null
-                        ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Todas as Métricas
-                  </motion.button>
-
-                  {/* Botões para cada métrica */}
-                  {METRICS.map((metric) => (
-                    <motion.button
-                      key={metric.key}
-                      onClick={() => setSelectedMetric(metric.key)}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        selectedMetric === metric.key
-                          ? "text-white"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                      }`}
-                      style={{
-                        backgroundColor: selectedMetric === metric.key ? metric.color : undefined,
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {metric.label}
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Visualização da Tabela */}
-          {viewMode === "table" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors duration-300">
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Dados Detalhados</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {data.length} registros encontrados • Shard ID: {shardIdInput}
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Data/Hora
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Shard ID
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Webhooks
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Events
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Changes Reports
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Changelogs
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Automations
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {data
-                      .sort((a, b) => new Date(b.DateTime).getTime() - new Date(a.DateTime).getTime()) // Ordenar por data mais recente primeiro
-                      .map((item, index) => (
-                        <motion.tr
-                          key={`${item.DateTime}-${index}`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: index * 0.02 }}
-                          className={index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700/50"}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {formatDateForDisplay(item.DateTime)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                            {item.shard_id}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {formatNumber(item.webhooks_count)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {formatNumber(item.events_count)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {formatNumber(item.changes_reports_count)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {formatNumber(item.changelogs_count)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {formatNumber(item.automations_count)}
-                          </td>
-                        </motion.tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
+          {/* Gráfico */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
+            <div className="h-[400px]">
+              <Line ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
             </div>
-          )}
+          </div>
+
+          {/* Seleção de Métricas */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Métrica</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Clique em uma métrica para visualizar apenas seus dados, ou em "Todas" para ver todas as métricas.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {/* Botão "Todas" */}
+              <motion.button
+                onClick={() => setSelectedMetric(null)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedMetric === null
+                    ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Todas as Métricas
+              </motion.button>
+
+              {/* Botões para cada métrica */}
+              {METRICS.map((metric) => (
+                <motion.button
+                  key={metric.key}
+                  onClick={() => setSelectedMetric(metric.key)}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedMetric === metric.key
+                      ? "text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                  style={{
+                    backgroundColor: selectedMetric === metric.key ? metric.color : undefined,
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {metric.label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
         </>
       )}
     </div>

@@ -59,18 +59,7 @@ const formatNumber = (value: number): string => {
 const formatDateTime = (dateString: string): string => {
   if (!dateString) return ""
 
-  let date: Date
-
-  if (dateString.endsWith("Z")) {
-    // Data em UTC, precisa converter para horário brasileiro (GMT-3)
-    date = new Date(dateString)
-    // Adicionar 3 horas para converter de UTC para horário brasileiro
-    date = new Date(date.getTime() + 3 * 60 * 60 * 1000)
-  } else {
-    // Assumir que já está no horário brasileiro, criar data sem conversão de fuso
-    const cleanDateString = dateString.replace(/[+-]\d{2}:\d{2}$/, "").replace("Z", "")
-    date = new Date(cleanDateString + (cleanDateString.includes("T") ? "" : "T00:00:00"))
-  }
+  const date = new Date(dateString)
 
   const day = date.getDate().toString().padStart(2, "0")
   const month = (date.getMonth() + 1).toString().padStart(2, "0")
@@ -117,12 +106,19 @@ export default function CurrentQueueStatus() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"chart" | "table">("chart")
   const chartRef = useRef<ChartJS<"bar"> | null>(null)
+  const automationsChartRef = useRef<ChartJS<"bar"> | null>(null) // New ref for automations chart
 
   // Destruir gráfico anterior quando dados mudarem
   useEffect(() => {
+    const chart = chartRef.current
+    const automationsChart = automationsChartRef.current
     return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy()
+      if (chart) {
+        chart.destroy()
+      }
+      if (automationsChart) {
+        // Destroy automations chart as well
+        automationsChart.destroy()
       }
     }
   }, [data])
@@ -188,7 +184,9 @@ export default function CurrentQueueStatus() {
       if (normalizedData.length === 0) {
         setError("Nenhum dado foi retornado pela API. Estrutura de resposta inesperada.")
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
+      // Added err back for error handling
       setError("Falha ao carregar dados. Verifique a conexão e tente novamente.")
       setData([]) // Garantir que data seja um array vazio em caso de erro
     } finally {
@@ -266,6 +264,71 @@ export default function CurrentQueueStatus() {
     },
   }
 
+  // NEW: Prepare data for the Automations chart
+  const automationsChartData = {
+    labels: data.map((item) => [`Shard ${item.shard_id}`, `${formatNumber(item.automations_count)}`]),
+    datasets: [
+      {
+        label: "Automations Count",
+        data: data.map((item) => item.automations_count),
+        backgroundColor: data.map((item) => getBarColor(item.automations_count)), // Reuse getBarColor for now
+      },
+    ],
+  }
+
+  // NEW: Options for the Automations chart
+  const automationsChartOptions: ChartOptions<"bar"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          title: (tooltipItems: TooltipItem<"bar">[]) => {
+            const index = tooltipItems[0].dataIndex
+            return data[index] ? `Shard ${data[index].shard_id}` : "N/A"
+          },
+          label: (tooltipItem: TooltipItem<"bar">) => `Automations: ${formatNumber(tooltipItem.raw as number)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          padding: 0,
+          autoSkip: false,
+          font: {
+            size: 12,
+          },
+          color: document.documentElement.classList.contains("dark") ? "#9ca3af" : "#6b7280",
+        },
+      },
+      y: {
+        type: "linear",
+        beginAtZero: true,
+        grace: "5%",
+        ticks: {
+          stepSize: 1,
+          precision: 0,
+          maxTicksLimit: 8,
+          font: {
+            size: 10,
+          },
+          color: document.documentElement.classList.contains("dark") ? "#9ca3af" : "#6b7280",
+          callback: (value) => formatNumber(Number(value)),
+        },
+        grid: {
+          color: document.documentElement.classList.contains("dark")
+            ? "rgba(75, 85, 99, 0.3)"
+            : "rgba(226, 232, 240, 0.6)",
+        },
+      },
+    },
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -275,7 +338,6 @@ export default function CurrentQueueStatus() {
             {lastUpdated ? (
               <>
                 Última atualização: {formatDateTime(lastUpdated)}
-                <span className="text-xs ml-2 text-gray-400 dark:text-gray-500">(Dados em tempo real)</span>
               </>
             ) : (
               "Carregando dados..."
@@ -352,14 +414,32 @@ export default function CurrentQueueStatus() {
         <div>
           {/* Visualização do Gráfico */}
           {viewMode === "chart" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Webhooks por Shard</h3>
+            <>
+              {/* Webhooks Chart */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Webhooks por Shard</h3>
+                </div>
+                <div className="h-[300px]">
+                  <Bar ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
+                </div>
               </div>
-              <div className="h-[300px]">
-                <Bar ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
+
+              {/* NEW: Automations Chart */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Automações por Shard</h3>
+                </div>
+                <div className="h-[300px]">
+                  <Bar
+                    ref={automationsChartRef}
+                    data={automationsChartData}
+                    options={automationsChartOptions}
+                    redraw={true}
+                  />
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Visualização da Tabela */}

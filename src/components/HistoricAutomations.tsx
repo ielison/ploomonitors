@@ -114,9 +114,10 @@ export default function HistoricAutomations() {
 
   // Destruir gráfico anterior quando dados mudarem
   useEffect(() => {
+    const chart = chartRef.current // Capture the current ref value
     return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy()
+      if (chart) {
+        chart.destroy()
       }
     }
   }, [selectedAutomationId, data])
@@ -149,6 +150,7 @@ export default function HistoricAutomations() {
       const result = await fetchHistoricAutomations(payload)
       setData(result)
       setSelectedAutomationId(null) // Reset automation selection when new data is loaded
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
