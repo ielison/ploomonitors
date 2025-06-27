@@ -55,20 +55,27 @@ const formatNumber = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
 }
 
-// Função para formatar data/hora - corrigida para o fuso horário brasileiro (GMT-3)
+// Função para formatar data/hora no fuso local do navegador
 const formatDateTime = (dateString: string): string => {
   if (!dateString) return ""
 
   const date = new Date(dateString)
 
-  const day = date.getDate().toString().padStart(2, "0")
-  const month = (date.getMonth() + 1).toString().padStart(2, "0")
-  const year = date.getFullYear().toString().slice(-2)
-  const hours = date.getHours().toString().padStart(2, "0")
-  const minutes = date.getMinutes().toString().padStart(2, "0")
+  // Ajuste manual de fuso horário: adiciona 3 horas
+  date.setHours(date.getHours() + 3)
 
-  return `${day}/${month}/${year} - ${hours}:${minutes}`
+  const day = date.toLocaleDateString("pt-BR", { day: "2-digit" })
+  const month = date.toLocaleDateString("pt-BR", { month: "2-digit" })
+  const year = date.toLocaleDateString("pt-BR", { year: "2-digit" })
+  const time = date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+
+  return `${day}/${month}/${year} - ${time}`
 }
+
 
 // Função para determinar a cor da barra baseada na contagem
 const getBarColor = (count: number): string => {
@@ -179,7 +186,7 @@ export default function CurrentQueueStatus() {
       const normalizedData = normalizeApiData(result)
 
       setData(normalizedData)
-      setLastUpdated(new Date().toISOString())
+      setLastUpdated(normalizedData[0]?.DateTime ?? null)
 
       if (normalizedData.length === 0) {
         setError("Nenhum dado foi retornado pela API. Estrutura de resposta inesperada.")
