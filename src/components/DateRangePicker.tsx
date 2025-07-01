@@ -1,98 +1,79 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { Calendar } from "lucide-react";
+import type React from "react"
+import { useState, useEffect, useRef } from "react"
+import { Calendar } from "lucide-react"
 
 interface DateRangePickerProps {
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (date: string) => void;
-  onEndDateChange: (date: string) => void;
-  minDate?: string;
-  maxDate?: string;
-  className?: string;
+  startDate: string
+  endDate: string
+  onStartDateChange: (date: string) => void
+  onEndDateChange: (date: string) => void
+  minDate?: string
+  maxDate?: string
+  className?: string
 }
 
-// Função para formatar data para exibição em português
-const formatDateForDisplay = (dateString: string): string => {
-  if (!dateString) return "";
+type EditingField =
+  | "startDay"
+  | "startMonth"
+  | "startYear"
+  | "startHour"
+  | "startMinute"
+  | "endDay"
+  | "endMonth"
+  | "endYear"
+  | "endHour"
+  | "endMinute"
+  | null
 
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
+interface DateParts {
+  day: string
+  month: string
+  year: string
+  hour: string
+  minute: string
+}
 
-  return `${day}/${month}/${year}, ${hours}:${minutes}`;
-};
+// Função para extrair partes da data
+const extractDateParts = (dateString: string): DateParts => {
+  if (!dateString) return { day: "01", month: "01", year: "2024", hour: "00", minute: "00" }
 
-// Função para converter data de exibição para formato datetime-local
-const convertDisplayToDatetime = (displayString: string): string => {
-  if (!displayString) return "";
+  const date = new Date(dateString)
+  return {
+    day: date.getDate().toString().padStart(2, "0"),
+    month: (date.getMonth() + 1).toString().padStart(2, "0"),
+    year: date.getFullYear().toString(),
+    hour: date.getHours().toString().padStart(2, "0"),
+    minute: date.getMinutes().toString().padStart(2, "0"),
+  }
+}
 
-  // Formato esperado: "dd/mm/yyyy, hh:mm"
-  const regex = /^(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{2}):(\d{2})$/;
-  const match = displayString.match(regex);
+// Função para construir data a partir das partes
+const buildDateFromParts = (parts: DateParts): string => {
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+}
 
-  if (!match) return "";
+// Função para validar valores
+const validateValue = (value: string, type: string): boolean => {
+  const num = Number.parseInt(value)
+  if (isNaN(num)) return false
 
-  const [, day, month, year, hours, minutes] = match;
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
-
-// Função para aplicar máscara de data
-const applyDateMask = (value: string): string => {
-  // Remove tudo que não é número
-  const numbers = value.replace(/\D/g, "");
-
-  // Aplica a máscara progressivamente
-  let masked = "";
-
-  if (numbers.length > 0) {
-    // DD
-    masked = numbers.substring(0, 2);
+  switch (type) {
+    case "day":
+      return num >= 1 && num <= 31
+    case "month":
+      return num >= 1 && num <= 12
+    case "year":
+      return num >= 2020 && num <= 2030
+    case "hour":
+      return num >= 0 && num <= 23
+    case "minute":
+      return num >= 0 && num <= 59
+    default:
+      return false
   }
-  if (numbers.length > 2) {
-    // DD/MM
-    masked += "/" + numbers.substring(2, 4);
-  }
-  if (numbers.length > 4) {
-    // DD/MM/YYYY
-    masked += "/" + numbers.substring(4, 8);
-  }
-  if (numbers.length > 8) {
-    // DD/MM/YYYY, HH
-    masked += ", " + numbers.substring(8, 10);
-  }
-  if (numbers.length > 10) {
-    // DD/MM/YYYY, HH:MM
-    masked += ":" + numbers.substring(10, 12);
-  }
-  if (numbers.length > 12) {
-    // DD/MM/YYYY, HH:MM - DD
-    masked += " - " + numbers.substring(12, 14);
-  }
-  if (numbers.length > 14) {
-    // DD/MM/YYYY, HH:MM - DD/MM
-    masked += "/" + numbers.substring(14, 16);
-  }
-  if (numbers.length > 16) {
-    // DD/MM/YYYY, HH:MM - DD/MM/YYYY
-    masked += "/" + numbers.substring(16, 20);
-  }
-  if (numbers.length > 20) {
-    // DD/MM/YYYY, HH:MM - DD/MM/YYYY, HH
-    masked += ", " + numbers.substring(20, 22);
-  }
-  if (numbers.length > 22) {
-    // DD/MM/YYYY, HH:MM - DD/MM/YYYY, HH:MM
-    masked += ":" + numbers.substring(22, 24);
-  }
-
-  return masked;
-};
+}
 
 export default function DateRangePicker({
   startDate,
@@ -103,133 +84,175 @@ export default function DateRangePicker({
   maxDate,
   className = "",
 }: DateRangePickerProps) {
-  const [inputValue, setInputValue] = useState("");
+  const [startParts, setStartParts] = useState<DateParts>(extractDateParts(startDate))
+  const [endParts, setEndParts] = useState<DateParts>(extractDateParts(endDate))
+  const [editing, setEditing] = useState<EditingField>(null)
+  const [tempValue, setTempValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Atualizar valor de exibição quando as datas mudarem
+  // Atualizar partes quando as datas mudarem externamente
   useEffect(() => {
-    if (startDate && endDate) {
-      const startFormatted = formatDateForDisplay(startDate);
-      const endFormatted = formatDateForDisplay(endDate);
-      setInputValue(`${startFormatted} - ${endFormatted}`);
-    } else {
-      setInputValue("");
+    setStartParts(extractDateParts(startDate))
+  }, [startDate])
+
+  useEffect(() => {
+    setEndParts(extractDateParts(endDate))
+  }, [endDate])
+
+  // Focar no input quando começar a editar
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
     }
-  }, [startDate, endDate]);
+  }, [editing])
+
+  const handlePartClick = (field: EditingField, currentValue: string) => {
+    setEditing(field)
+    setTempValue(currentValue)
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value;
+    const value = e.target.value.replace(/\D/g, "") // Só números
+    setTempValue(value)
+  }
 
-    // Aplicar máscara
-    const maskedValue = applyDateMask(rawValue);
-    setInputValue(maskedValue);
-
-    // Tentar parsear o valor se estiver completo
-    // Formato esperado: "dd/mm/yyyy, hh:mm - dd/mm/yyyy, hh:mm"
-    const rangeRegex =
-      /^(\d{2}\/\d{2}\/\d{4},\s*\d{2}:\d{2})\s*-\s*(\d{2}\/\d{2}\/\d{4},\s*\d{2}:\d{2})$/;
-    const rangeMatch = maskedValue.match(rangeRegex);
-
-    if (rangeMatch) {
-      const [, startStr, endStr] = rangeMatch;
-      const startDatetime = convertDisplayToDatetime(startStr.trim());
-      const endDatetime = convertDisplayToDatetime(endStr.trim());
-
-      if (startDatetime && endDatetime) {
-        // Validar se as datas estão dentro dos limites
-        const startDateObj = new Date(startDatetime);
-        const endDateObj = new Date(endDatetime);
-        const minDateObj = minDate ? new Date(minDate) : null;
-        const maxDateObj = maxDate ? new Date(maxDate) : null;
-
-        let isValid = true;
-
-        if (minDateObj && startDateObj < minDateObj) isValid = false;
-        if (maxDateObj && endDateObj > maxDateObj) isValid = false;
-        if (startDateObj >= endDateObj) isValid = false;
-
-        if (isValid) {
-          onStartDateChange(startDatetime);
-          onEndDateChange(endDatetime);
-        }
-      }
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault()
+      commitValue()
+    } else if (e.key === "Escape") {
+      setEditing(null)
+      setTempValue("")
     }
-  };
+  }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Permitir apenas números, backspace, delete, tab, escape, enter e teclas de navegação
-    const allowedKeys = [
-      "Backspace",
-      "Delete",
-      "Tab",
-      "Escape",
-      "Enter",
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "Home",
-      "End",
-    ];
+  const handleInputBlur = () => {
+    commitValue()
+  }
 
-    const isNumber = /^[0-9]$/.test(e.key);
-    const isAllowedKey = allowedKeys.includes(e.key);
-    const isCtrlA = e.ctrlKey && e.key === "a";
-    const isCtrlC = e.ctrlKey && e.key === "c";
-    const isCtrlV = e.ctrlKey && e.key === "v";
-    const isCtrlX = e.ctrlKey && e.key === "x";
-    const isCtrlZ = e.ctrlKey && e.key === "z";
-
-    if (
-      !isNumber &&
-      !isAllowedKey &&
-      !isCtrlA &&
-      !isCtrlC &&
-      !isCtrlV &&
-      !isCtrlX &&
-      !isCtrlZ
-    ) {
-      e.preventDefault();
+  const commitValue = () => {
+    if (!editing || !tempValue) {
+      setEditing(null)
+      return
     }
 
-    if (e.key === "Enter") {
-      e.preventDefault();
-      // Forçar uma nova tentativa de parsing
-      handleInputChange({
-        target: { value: inputValue },
-      } as React.ChangeEvent<HTMLInputElement>);
+    const fieldType = editing.replace(/^(start|end)/, "").toLowerCase()
+    const isStart = editing.startsWith("start")
+
+    // Validar valor
+    if (!validateValue(tempValue, fieldType)) {
+      setEditing(null)
+      setTempValue("")
+      return
     }
-  };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pastedText = e.clipboardData.getData("text");
+    const paddedValue = tempValue.padStart(2, "0")
+    const currentParts = isStart ? { ...startParts } : { ...endParts }
 
-    // Aplicar máscara ao texto colado
-    const maskedText = applyDateMask(pastedText);
+    // Atualizar a parte específica
+    switch (fieldType) {
+      case "day":
+        currentParts.day = paddedValue
+        break
+      case "month":
+        currentParts.month = paddedValue
+        break
+      case "year":
+        currentParts.year = tempValue.padStart(4, "0")
+        break
+      case "hour":
+        currentParts.hour = paddedValue
+        break
+      case "minute":
+        currentParts.minute = paddedValue
+        break
+    }
 
-    // Simular mudança de input
-    handleInputChange({
-      target: { value: maskedText },
-    } as React.ChangeEvent<HTMLInputElement>);
-  };
+    // Construir nova data
+    const newDate = buildDateFromParts(currentParts)
+
+    // Validar se a data é válida
+    const dateObj = new Date(newDate)
+    if (isNaN(dateObj.getTime())) {
+      setEditing(null)
+      setTempValue("")
+      return
+    }
+
+    // Validar limites min/max
+    if (minDate && dateObj < new Date(minDate)) {
+      setEditing(null)
+      setTempValue("")
+      return
+    }
+    if (maxDate && dateObj > new Date(maxDate)) {
+      setEditing(null)
+      setTempValue("")
+      return
+    }
+
+    // Atualizar estado
+    if (isStart) {
+      setStartParts(currentParts)
+      onStartDateChange(newDate)
+    } else {
+      setEndParts(currentParts)
+      onEndDateChange(newDate)
+    }
+
+    setEditing(null)
+    setTempValue("")
+  }
+
+  const renderEditablePart = (value: string, field: EditingField, maxLength = 2) => {
+    const isEditing = editing === field
+
+    if (isEditing) {
+      return (
+        <input
+          ref={inputRef}
+          type="text"
+          value={tempValue}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          onBlur={handleInputBlur}
+          maxLength={maxLength}
+          className="inline-block w-auto min-w-[20px] bg-transparent border-none outline-none text-center p-0 m-0"
+          style={{ width: `${Math.max(tempValue.length, 1)}ch` }}
+        />
+      )
+    }
+
+    return (
+      <span
+        onClick={() => handlePartClick(field, value)}
+        className="cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/30 px-1 rounded transition-colors"
+      >
+        {value}
+      </span>
+    )
+  }
 
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder="dd/mm/aaaa, hh:mm - dd/mm/aaaa, hh:mm"
-          maxLength={29} // Tamanho máximo do formato completo
-          className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-        />
+        <div className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-500 dark:focus-within:ring-indigo-400 focus-within:border-transparent transition-colors cursor-text">
+          {/* Data de início */}
+          {renderEditablePart(startParts.day, "startDay")}/{renderEditablePart(startParts.month, "startMonth")}/
+          {renderEditablePart(startParts.year, "startYear", 4)}, {renderEditablePart(startParts.hour, "startHour")}:
+          {renderEditablePart(startParts.minute, "startMinute")}
+          <span className="mx-2">-</span>
+          {/* Data de fim */}
+          {renderEditablePart(endParts.day, "endDay")}/{renderEditablePart(endParts.month, "endMonth")}/
+          {renderEditablePart(endParts.year, "endYear", 4)}, {renderEditablePart(endParts.hour, "endHour")}:
+          {renderEditablePart(endParts.minute, "endMinute")}
+        </div>
+
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Calendar className="w-4 h-4 text-gray-400" />
         </div>
       </div>
     </div>
-  );
+  )
 }
