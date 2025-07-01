@@ -1,8 +1,9 @@
 "use client"
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
-import { Calendar, List } from "lucide-react"
+import { List } from "lucide-react"
 import { fetchHistoricAutomations } from "../utils/api"
+import DateRangePicker from "./DateRangePicker"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -150,7 +151,7 @@ export default function HistoricAutomations() {
       const result = await fetchHistoricAutomations(payload)
       setData(result)
       setSelectedAutomationId(null) // Reset automation selection when new data is loaded
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
@@ -385,41 +386,24 @@ export default function HistoricAutomations() {
 
       {/* Filtros sempre visíveis */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Data/Hora Inicial
-            </label>
-            <input
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value)
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Período de Busca</label>
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={(date) => {
+                setStartDate(date)
                 setData([])
                 setError(null)
               }}
-              min={getMinDate()}
-              max={getMaxDate()}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Data/Hora Final
-            </label>
-            <input
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value)
+              onEndDateChange={(date) => {
+                setEndDate(date)
                 setData([])
                 setError(null)
               }}
-              min={startDate || getMinDate()}
-              max={getMaxDate()}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+              minDate={getMinDate()}
+              maxDate={getMaxDate()}
             />
           </div>
           <div className="flex items-end">

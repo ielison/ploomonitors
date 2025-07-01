@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
-import { Calendar, List, BarChart3, Table } from "lucide-react"
+import { List, BarChart3, Table } from "lucide-react"
 import { fetchHistoricCentral } from "../utils/api"
+import DateRangePicker from "./DateRangePicker"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -155,7 +156,7 @@ export default function HistoricWebhookData() {
 
       setData(result)
       setSelectedMetric(null) // Reset metric selection when new data is loaded
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("Falha ao carregar dados. Verifique os filtros e tente novamente.")
       setData([])
@@ -352,265 +353,333 @@ export default function HistoricWebhookData() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Filas</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {formatDateForDisplay(startDate)} até {formatDateForDisplay(endDate)}
-            {shardIdInput && ` • Shard ID: ${shardIdInput}`}
-            {selectedMetric && ` • Visualizando ${METRICS.find((m) => m.key === selectedMetric)?.label}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {/* Toggle de visualização */}
-          {data.length > 0 && (
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-md p-1">
-              <button
-                onClick={() => setViewMode("chart")}
-                className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  viewMode === "chart"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Gráfico
-              </button>
-              <button
-                onClick={() => setViewMode("table")}
-                className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  viewMode === "table"
-                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                }`}
-              >
-                <Table className="w-4 h-4 mr-1" />
-                Tabela
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Filtros sempre visíveis */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Data/Hora Inicial
-            </label>
-            <input
-              type="datetime-local"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value)
-                setData([])
-                setError(null)
-              }}
-              min={getMinDate()}
-              max={getMaxDate()}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-            />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Histórico de Filas</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              {formatDateForDisplay(startDate)} até {formatDateForDisplay(endDate)}
+              {shardIdInput && ` • Shard ID: ${shardIdInput}`}
+              {selectedMetric && ` • Visualizando ${METRICS.find((m) => m.key === selectedMetric)?.label}`}
+            </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              Data/Hora Final
-            </label>
-            <input
-              type="datetime-local"
-              value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value)
-                setData([])
-                setError(null)
-              }}
-              min={startDate || getMinDate()}
-              max={getMaxDate()}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Limpar Filtros
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros Rápidos</label>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => {
-                setQuickFilter(1)
-                setData([])
-                setError(null)
-              }}
-              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-            >
-              Última hora
-            </button>
-            <button
-              onClick={() => {
-                setQuickFilter(6)
-                setData([])
-                setError(null)
-              }}
-              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-            >
-              Últimas 6h
-            </button>
-            <button
-              onClick={() => {
-                setQuickFilter(24)
-                setData([])
-                setError(null)
-              }}
-              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-            >
-              Últimas 24h
-            </button>
-            <button
-              onClick={() => {
-                setQuickFilter(168)
-                setData([])
-                setError(null)
-              }}
-              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-            >
-              Última semana
-            </button>
-            <button
-              onClick={() => {
-                setQuickFilter(720)
-                setData([])
-                setError(null)
-              }}
-              className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-            >
-              Últimos 30 dias
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shard ID</label>
-            <input
-              type="number"
-              value={shardIdInput}
-              onChange={(e) => {
-                setShardIdInput(e.target.value)
-                setData([])
-                setError(null)
-              }}
-              placeholder="Ex: 1"
-              min="1"
-              max="12"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (!shardIdInput) {
-                setError("Por favor, preencha o Shard ID para pesquisar.")
-                setData([])
-                return
-              }
-              setError(null)
-              setTriggerSearch(true)
-            }}
-            disabled={loading || !shardIdInput}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "..." : "Pesquisar"}
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-md text-red-700 dark:text-red-300">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="w-12 h-12 border-4 border-solid rounded-full animate-spin mb-4 border-gray-300 dark:border-gray-600 border-t-indigo-500 dark:border-t-indigo-400"></div>
-            <p className="text-lg font-medium text-gray-900 dark:text-white">Carregando dados...</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Aguarde enquanto buscamos as informações.</p>
-          </div>
-        </div>
-      ) : data.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <List className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-          <p className="text-lg font-medium text-gray-900 dark:text-white">Nenhum dado encontrado</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Ajuste os filtros de data e preencha o Shard ID para pesquisar.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Gráfico */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-            <div className="h-[400px]">
-              <Line ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
-            </div>
-          </div>
-
-          {/* Seleção de Métricas */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Métrica</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Clique em uma métrica para visualizar apenas seus dados, ou em "Todas" para ver todas as métricas.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {/* Botão "Todas" */}
-              <motion.button
-                onClick={() => setSelectedMetric(null)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedMetric === null
-                    ? "bg-indigo-600 dark:bg-indigo-500 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Todas as Métricas
-              </motion.button>
-
-              {/* Botões para cada métrica */}
-              {METRICS.map((metric) => (
-                <motion.button
-                  key={metric.key}
-                  onClick={() => setSelectedMetric(metric.key)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedMetric === metric.key
-                      ? "text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+            {/* Toggle de visualização */}
+            {data.length > 0 && (
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-md p-1">
+                <button
+                  onClick={() => setViewMode("chart")}
+                  className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    viewMode === "chart"
+                      ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   }`}
-                  style={{
-                    backgroundColor: selectedMetric === metric.key ? metric.color : undefined,
-                  }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
                 >
-                  {metric.label}
-                </motion.button>
-              ))}
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Gráfico
+                </button>
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={`flex items-center px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    viewMode === "table"
+                      ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <Table className="w-4 h-4 mr-1" />
+                  Tabela
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Filtros sempre visíveis */}
+        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Período de Busca
+              </label>
+              <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={(date) => {
+                  setStartDate(date)
+                  setData([])
+                  setError(null)
+                }}
+                onEndDateChange={(date) => {
+                  setEndDate(date)
+                  setData([])
+                  setError(null)
+                }}
+                minDate={getMinDate()}
+                maxDate={getMaxDate()}
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Limpar Filtros
+              </button>
             </div>
           </div>
-        </>
-      )}
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtros Rápidos</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  setQuickFilter(1)
+                  setData([])
+                  setError(null)
+                }}
+                className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              >
+                Última hora
+              </button>
+              <button
+                onClick={() => {
+                  setQuickFilter(6)
+                  setData([])
+                  setError(null)
+                }}
+                className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              >
+                Últimas 6h
+              </button>
+              <button
+                onClick={() => {
+                  setQuickFilter(24)
+                  setData([])
+                  setError(null)
+                }}
+                className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              >
+                Últimas 24h
+              </button>
+              <button
+                onClick={() => {
+                  setQuickFilter(168)
+                  setData([])
+                  setError(null)
+                }}
+                className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              >
+                Última semana
+              </button>
+              <button
+                onClick={() => {
+                  setQuickFilter(720)
+                  setData([])
+                  setError(null)
+                }}
+                className="px-3 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              >
+                Últimos 30 dias
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shard ID</label>
+              <input
+                type="number"
+                value={shardIdInput}
+                onChange={(e) => {
+                  setShardIdInput(e.target.value)
+                  setData([])
+                  setError(null)
+                }}
+                placeholder="Ex: 1"
+                min="1"
+                max="12"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (!shardIdInput) {
+                  setError("Por favor, preencha o Shard ID para pesquisar.")
+                  setData([])
+                  return
+                }
+                setError(null)
+                setTriggerSearch(true)
+              }}
+              disabled={loading || !shardIdInput}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "..." : "Pesquisar"}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-md text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center p-8">
+            <div className="flex flex-col items-center justify-center h-full">
+              <div className="w-12 h-12 border-4 border-solid rounded-full animate-spin mb-4 border-gray-300 dark:border-gray-600 border-t-indigo-500 dark:border-t-indigo-400"></div>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">Carregando dados...</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Aguarde enquanto buscamos as informações.</p>
+            </div>
+          </div>
+        ) : data.length === 0 ? (
+          <div className="text-center p-8">
+            <List className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+            <p className="text-lg font-medium text-gray-900 dark:text-white">Nenhum dado encontrado</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Ajuste os filtros de data e preencha o Shard ID para pesquisar.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Visualização do Gráfico */}
+            {viewMode === "chart" && (
+              <>
+                {/* Gráfico */}
+                <div className="p-4 transition-colors duration-300">
+                  <div className="h-[400px]">
+                    <Line ref={chartRef} data={chartData} options={chartOptions} redraw={true} />
+                  </div>
+                </div>
+
+                {/* Seleção de Métricas */}
+                <div className="p-4 transition-colors duration-300">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Selecionar Métrica</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Clique em uma métrica para visualizar apenas seus dados, ou em "Todas" para ver todas as métricas.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {/* Botão "Todas" */}
+                    <motion.button
+                      onClick={() => setSelectedMetric(null)}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        selectedMetric === null
+                          ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Todas as Métricas
+                    </motion.button>
+
+                    {/* Botões para cada métrica */}
+                    {METRICS.map((metric) => (
+                      <motion.button
+                        key={metric.key}
+                        onClick={() => setSelectedMetric(metric.key)}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          selectedMetric === metric.key
+                            ? "text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                        style={{
+                          backgroundColor: selectedMetric === metric.key ? metric.color : undefined,
+                        }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        {metric.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Visualização da Tabela */}
+            {viewMode === "table" && (
+              <div className="overflow-hidden transition-colors duration-300">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Dados Detalhados</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {data.length} registros encontrados • Shard ID: {shardIdInput}
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Data/Hora
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Shard ID
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Webhooks
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Events
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Changes Reports
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Changelogs
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Automations
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {data
+                        .sort((a, b) => new Date(b.DateTime).getTime() - new Date(a.DateTime).getTime()) // Ordenar por data mais recente primeiro
+                        .map((item, index) => (
+                          <motion.tr
+                            key={`${item.DateTime}-${index}`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: index * 0.02 }}
+                            className={index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-700/50"}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                              {formatDateForDisplay(item.DateTime)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {item.shard_id}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                              {formatNumber(item.webhooks_count)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                              {formatNumber(item.events_count)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                              {formatNumber(item.changes_reports_count)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                              {formatNumber(item.changelogs_count)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                              {formatNumber(item.automations_count)}
+                            </td>
+                          </motion.tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
